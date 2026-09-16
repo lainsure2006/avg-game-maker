@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《樱色未央》· 游戏资源管理</title>
+<style>
+:root{
+  --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --border:#2a2f3a;
+  --text:#e6e9ef; --muted:#9aa4b2; --accent:#6ea8fe;
+  --green:#3fb950; --red:#f85149; --amber:#d29922; --blue:#388bfd;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.5}
+header{padding:18px 22px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#14171e,#0f1115)}
+header h1{margin:0;font-size:20px;font-weight:700}
+header .sub{color:var(--muted);font-size:12px;margin-top:4px}
+.tabs{display:flex;gap:4px;padding:10px 18px 0;border-bottom:1px solid var(--border);background:var(--panel)}
+.tab{padding:9px 16px;cursor:pointer;border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0;color:var(--muted);font-weight:600}
+.tab.active{background:var(--panel2);color:var(--text);border-color:var(--border)}
+.tab .badge{margin-left:6px;font-size:11px;background:#2a2f3a;color:var(--muted);padding:1px 7px;border-radius:10px}
+.tab .badge.warn{background:rgba(210,153,34,.18);color:var(--amber)}
+main{padding:18px 22px;max-width:1280px;margin:0 auto}
+.hidden{display:none}
+/* overview */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:20px}
+.stat{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px}
+.stat h3{margin:0 0 6px;font-size:13px;color:var(--muted);font-weight:600}
+.stat .big{font-size:30px;font-weight:800}
+.stat .bar{height:8px;background:#0c0e13;border-radius:6px;margin-top:10px;overflow:hidden}
+.stat .bar>i{display:block;height:100%;background:linear-gradient(90deg,#3fb950,#6ea8fe)}
+.stat .note{font-size:12px;color:var(--muted);margin-top:6px}
+.lists{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.lists{grid-template-columns:1fr}}
+.box{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px}
+.box h3{margin:0 0 10px;font-size:14px}
+.chip{display:inline-block;background:#0c0e13;border:1px solid var(--border);border-radius:8px;padding:4px 9px;margin:3px;font-size:12px;font-family:ui-monospace,Consolas,monospace}
+/* character */
+.char-card{background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px}
+.char-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.char-head .nm{font-size:19px;font-weight:800}
+.char-head .meta{color:var(--muted);font-size:12px}
+.char-head .sig{color:var(--amber);font-size:12px}
+.ref-row{display:flex;align-items:center;gap:10px;margin:10px 0 4px;flex-wrap:wrap}
+.ref-thumb{width:64px;height:88px;border-radius:8px;object-fit:cover;border:1px solid var(--border);background:
+  repeating-conic-gradient(#2a2f3a 0% 25%,#1a1d24 0% 50%) 50%/16px 16px}
+.ref-thumb.miss{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;text-align:center}
+.pose-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:10px}
+.pose{cursor:pointer;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:.15s;position:relative}
+.pose:hover{border-color:var(--accent);transform:translateY(-2px)}
+.pose .thumb{width:100%;height:200px;object-fit:contain;background:
+  repeating-conic-gradient(#232831 0% 25%,#1a1d24 0% 50%) 50%/20px 20px;display:block}
+.pose .thumb.miss{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+.pose .cap{padding:8px 10px}
+.pose .fn{font-family:ui-monospace,Consolas,monospace;font-size:12px;word-break:break-all}
+.pose .st{position:absolute;top:8px;right:8px;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700}
+.st.ok{background:rgba(63,185,80,.18);color:var(--green)}
+.st.miss{background:rgba(248,81,73,.18);color:var(--red)}
+.st.unused{background:rgba(210,153,34,.18);color:var(--amber)}
+.pose .cnt{font-size:11px;color:var(--muted);margin-top:2px}
+/* backgrounds */
+.group-title{font-size:15px;font-weight:700;margin:18px 0 8px;padding-left:10px;border-left:3px solid var(--accent)}
+.bg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.bg-card{cursor:pointer;background:var(--panel2);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:.15s}
+.bg-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.bg-card .thumb{width:100%;height:120px;object-fit:cover;display:block;background:#0c0e13}
+.bg-card .thumb.miss{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+.bg-card .cap{padding:9px 11px}
+.bg-card .nm{font-weight:700;font-size:13px}
+.bg-card .kk{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--muted)}
+.bg-card .cnt{font-size:11px;color:var(--muted);margin-top:2px}
+/* audio */
+table{width:100%;border-collapse:collapse;background:var(--panel2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:13px;vertical-align:top}
+th{background:#0c0e13;color:var(--muted);font-weight:600;position:sticky;top:0}
+tr:last-child td{border-bottom:none}
+td.mono{font-family:ui-monospace,Consolas,monospace}
+.req-no{color:var(--muted);font-size:11px}
+/* controls */
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.controls input,.controls select{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:13px}
+.controls input{min-width:200px}
+/* lightbox */
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:50;padding:24px}
+.lb.show{display:flex}
+.lb-inner{background:var(--panel);border:1px solid var(--border);border-radius:14px;max-width:860px;width:100%;max-height:90vh;overflow:auto;display:flex;flex-direction:column}
+.lb-imgwrap{padding:18px;display:flex;justify-content:center;background:
+  repeating-conic-gradient(#232831 0% 25%,#1a1d24 0% 50%) 50%/22px 22px}
+.lb-img{max-width:100%;max-height:52vh;border-radius:8px}
+.lb-audio{padding:30px;text-align:center;color:var(--muted)}
+.lb-body{padding:16px 20px 22px}
+.lb-body h2{margin:0 0 4px;font-size:18px}
+.lb-body .fn{font-family:ui-monospace,Consolas,monospace;color:var(--accent);font-size:13px;word-break:break-all}
+.lb-body .row{margin-top:12px}
+.lb-body .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.lb-body pre{background:#0c0e13;border:1px solid var(--border);border-radius:8px;padding:12px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Consolas,monospace;font-size:12px;margin:0;max-height:200px;overflow:auto}
+.lb-close{position:absolute;top:14px;right:18px;font-size:26px;color:#fff;cursor:pointer;background:none;border:none}
+.copy-btn{margin-top:8px;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:12px;font-weight:600}
+.copy-btn:active{transform:scale(.97)}
+.tag{display:inline-block;font-size:11px;padding:2px 9px;border-radius:10px;font-weight:700;margin-left:6px}
+.tag.ok{background:rgba(63,185,80,.18);color:var(--green)}
+.tag.miss{background:rgba(248,81,73,.18);color:var(--red)}
+.tag.unused{background:rgba(210,153,34,.18);color:var(--amber)}
+</style>
+</head>
+<body>
+<header>
+  <h1>《樱色未央》· 游戏资源管理</h1>
+  <div class="sub">数据来源：图片提示词总表 / 音频需求清单（设计应有）＋ 磁盘实际文件 ＋ story3 脚本真实引用 · 生成于 <span id="gen"></span></div>
+</header>
+<nav class="tabs">
+  <div class="tab active" data-t="overview">概览<span class="badge" id="t-overview"></span></div>
+  <div class="tab" data-t="char">人物<span class="badge" id="t-char"></span></div>
+  <div class="tab" data-t="bg">背景<span class="badge warn" id="t-bg"></span></div>
+  <div class="tab" data-t="audio">音频<span class="badge warn" id="t-audio"></span></div>
+</nav>
+<main>
+  <section id="p-overview"></section>
+  <section id="p-char" class="hidden"></section>
+  <section id="p-bg" class="hidden"></section>
+  <section id="p-audio" class="hidden"></section>
+</main>
+<div class="lb" id="lb"><div class="lb-inner"><button class="lb-close" onclick="closeLb()">&times;</button><div id="lb-content"></div></div></div>
+<script>
+const DATA = {
+ "generated": "2026-08-16 08:04",
+ "prefix_s": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600",
+ "prefix_p": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece",
+ "neg": "lowres, bad anatomy, bad hands, extra fingers, missing fingers, text, watermark, signature, blurry, jpeg artifacts, mutated, deformed, ugly, poorly drawn, extra digits, cropped, out of frame, duplicate",
+ "characters": [
+  {
+   "id": "linwan",
+   "name": "林晚",
+   "signature": "右手腕褪色红绳（每 pose 必画）",
+   "identity": "1girl, high school uniform, high ponytail, black hair with slight chestnut highlight, faded red bracelet on right wrist, bright eyes, lively, cheerful",
+   "ref": "linwan_ref.png",
+   "ref_has": true,
+   "ref_src": "images/sprite/linwan_ref.png",
+   "poses": [
+    {
+     "file": "linwan_default.png",
+     "pose": "default",
+     "expr": "gentle smile, relaxed posture",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1girl, high school uniform, high ponytail, black hair with slight chestnut highlight, faded red bracelet on right wrist, bright eyes, lively, cheerful, gentle smile, relaxed posture",
+     "has": true,
+     "usage": 7,
+     "src": "images/sprite/linwan_default.png"
+    },
+    {
+     "file": "linwan_happy.png",
+     "pose": "happy",
+     "expr": "big happy smile, eyes closed, laughing",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1girl, high school uniform, high ponytail, black hair with slight chestnut highlight, faded red bracelet on right wrist, bright eyes, lively, cheerful, big happy smile, eyes closed, laughing",
+     "has": true,
+     "usage": 15,
+     "src": "images/sprite/linwan_happy.png"
+    },
+    {
+     "file": "linwan_sad.png",
+     "pose": "sad",
+     "expr": "sad expression, downturned eyes, slight frown, vulnerable",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1girl, high school uniform, high ponytail, black hair with slight chestnut highlight, faded red bracelet on right wrist, bright eyes, lively, cheerful, sad expression, downturned eyes, slight frown, vulnerable",
+     "has": true,
+     "usage": 4,
+     "src": "images/sprite/linwan_sad.png"
+    },
+    {
+     "file": "linwan_surprised.png",
+     "pose": "surprised",
+     "expr": "surprised, eyes wide, mouth slightly open",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1girl, high school uniform, high ponytail, black hair with slight chestnut highlight, faded red bracelet on right wrist, bright eyes, lively, cheerful, surprised, eyes wide, mouth slightly open",
+     "has": true,
+     "usage": 0,
+     "src": "images/sprite/linwan_surprised.png"
+    }
+   ]
+  },
+  {
+   "id": "shenzhiyao",
+   "name": "沈知遥",
+   "signature": "校服扣到最顶一颗（每 pose 必画）",
+   "identity": "1girl, high school uniform, all buttons fastened to the top, neat shoulder-length black hair, calm eyes with inner light, holding a notebook, quiet",
+   "ref": "shenzhiyao_ref.png",
+   "ref_has": true,
+   "ref_src": "images/sprite/shenzhiyao_ref.png",
+   "poses": [
+    {
+     "file": "shenzhiyao_default.png",
+     "pose": "default",
+     "expr": "calm neutral expression, soft gaze",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1girl, high school uniform, all buttons fastened to the top, neat shoulder-length black hair, calm eyes with inner light, holding a notebook, quiet, calm neutral expression, soft gaze",
+     "has": true,
+     "usage": 5,
+     "src": "images/sprite/shenzhiyao_default.png"
+    },
+    {
+     "file": "shenzhiyao_smile.png",
+     "pose": "smile",
+     "expr": "very faint smile, lips slightly curved, gentle",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1girl, high school uniform, all buttons fastened to the top, neat shoulder-length black hair, calm eyes with inner light, holding a notebook, quiet, very faint smile, lips slightly curved, gentle",
+     "has": true,
+     "usage": 12,
+     "src": "images/sprite/shenzhiyao_smile.png"
+    },
+    {
+     "file": "shenzhiyao_sad.png",
+     "pose": "sad",
+     "expr": "sad, looking down, melancholy, inner light dimmed",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1girl, high school uniform, all buttons fastened to the top, neat shoulder-length black hair, calm eyes with inner light, holding a notebook, quiet, sad, looking down, melancholy, inner light dimmed",
+     "has": true,
+     "usage": 6,
+     "src": "images/sprite/shenzhiyao_sad.png"
+    },
+    {
+     "file": "shenzhiyao_surprised.png",
+     "pose": "surprised",
+     "expr": "slightly surprised, eyebrows raised, quiet wonder",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1girl, high school uniform, all buttons fastened to the top, neat shoulder-length black hair, calm eyes with inner light, holding a notebook, quiet, slightly surprised, eyebrows raised, quiet wonder",
+     "has": true,
+     "usage": 0,
+     "src": "images/sprite/shenzhiyao_surprised.png"
+    }
+   ]
+  },
+  {
+   "id": "zhouye",
+   "name": "周野",
+   "signature": "虎牙 + 校服敞穿（每 pose 必画）",
+   "identity": "1boy, high school uniform worn open over shirt, short messy black hair, cheerful, relaxed posture",
+   "ref": "zhouye_ref.png",
+   "ref_has": true,
+   "ref_src": "images/sprite/zhouye_ref.png",
+   "poses": [
+    {
+     "file": "zhouye_default.png",
+     "pose": "default",
+     "expr": "grinning with tiger tooth, carefree",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1boy, high school uniform worn open over shirt, short messy black hair, cheerful, relaxed posture, grinning with tiger tooth, carefree",
+     "has": true,
+     "usage": 21,
+     "src": "images/sprite/zhouye_default.png"
+    },
+    {
+     "file": "zhouye_serious.png",
+     "pose": "serious",
+     "expr": "serious expression, slight frown, focused",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1boy, high school uniform worn open over shirt, short messy black hair, cheerful, relaxed posture, serious expression, slight frown, focused",
+     "has": true,
+     "usage": 1,
+     "src": "images/sprite/zhouye_serious.png"
+    },
+    {
+     "file": "zhouye_surprised.png",
+     "pose": "surprised",
+     "expr": "surprised, eyes wide, tiger tooth showing",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1boy, high school uniform worn open over shirt, short messy black hair, cheerful, relaxed posture, surprised, eyes wide, tiger tooth showing",
+     "has": true,
+     "usage": 0,
+     "src": "images/sprite/zhouye_surprised.png"
+    },
+    {
+     "file": "zhouye_worried.png",
+     "pose": "worried",
+     "expr": "worried, concerned look, brows knit",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1boy, high school uniform worn open over shirt, short messy black hair, cheerful, relaxed posture, worried, concerned look, brows knit",
+     "has": true,
+     "usage": 1,
+     "src": "images/sprite/zhouye_worried.png"
+    }
+   ]
+  },
+  {
+   "id": "wanglaoshi",
+   "name": "王老师",
+   "signature": "（无特定签名物）",
+   "identity": "1woman, about 30, teacher, thin framed glasses, neat ponytail, professional, gentle but authoritative",
+   "ref": "wanglaoshi_ref.png",
+   "ref_has": true,
+   "ref_src": "images/sprite/wanglaoshi_ref.png",
+   "poses": [
+    {
+     "file": "wanglaoshi_default.png",
+     "pose": "default",
+     "expr": "gentle professional smile",
+     "positive": "makoto shinkai style, soft lighting, anime, high quality, full body, standing pose, front view, simple white background, 400x600, 1woman, about 30, teacher, thin framed glasses, neat ponytail, professional, gentle but authoritative, gentle professional smile",
+     "has": true,
+     "usage": 3,
+     "src": "images/sprite/wanglaoshi_default.png"
+    }
+   ]
+  }
+ ],
+ "backgrounds": [
+  {
+   "key": "rooftop",
+   "file": "rooftop.png",
+   "group": "必出",
+   "name": "天台·春日海景",
+   "usage_note": "第1/9/15章天台、多个结局天台",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, rooftop of a high school building, metal railing, spring, distant sea horizon with a silver shimmering line, sea breeze, a few cherry blossom petals floating, warm golden sunlight, blue sky with layered clouds",
+   "has": true,
+   "usage": 10,
+   "src": "images/bg/rooftop.png"
+  },
+  {
+   "key": "library",
+   "file": "library.png",
+   "group": "必出",
+   "name": "图书馆·旧楼三层窗朝海",
+   "usage_note": "第2/7/12章图书馆（沈知遥线核心）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, interior of an old Japanese high school library on the third floor, large floor-to-ceiling windows facing the deep blue sea horizon, wooden bookshelves lining the walls filled with colorful hardcover books, a few empty reading desks and chairs pushed neatly aside, warm golden afternoon sunlight streaming diagonally through the windows creating volumetric god rays and dust motes floating in light beams, polished wooden floor reflecting soft light, quiet peaceful atmosphere, absolutely no people no humans no figures nobody, spacious clean foreground area suitable for placing character sprites on top, cherry blossom petals drifting near the window sill, distant sea view with shimmering water surface under bright blue sky with layered cumulus clouds",
+   "has": true,
+   "usage": 6,
+   "src": "images/bg/library.png"
+  },
+  {
+   "key": "sea",
+   "file": "sea.png",
+   "group": "必出",
+   "name": "海边·灯塔",
+   "usage_note": "第12章沈知遥线海边、隐藏TrueEnd",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, seaside with a small white lighthouse, ocean waves, rocky shore, clear blue sky, sea breeze, peaceful, wide horizon",
+   "has": true,
+   "usage": 3,
+   "src": "images/bg/sea.png"
+  },
+  {
+   "key": "playground",
+   "file": "playground.png",
+   "group": "必出",
+   "name": "操场·社团招新",
+   "usage_note": "第3/8章社团招新、投篮摊",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, school playground, rows of club recruitment tents and stalls, banners, cherry blossom trees in background, lively spring afternoon, students in uniform",
+   "has": true,
+   "usage": 8,
+   "src": "images/bg/playground.png"
+  },
+  {
+   "key": "rehearsal",
+   "file": "rehearsal.png",
+   "group": "必出",
+   "name": "排练室",
+   "usage_note": "第6章林晚舞台剧线",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, interior of a school rehearsal room, large mirrors covering one wall, polished wooden floor, theatrical stage props and stacked scenery panels in the back, a few chairs and music stands pushed neatly aside, warm soft afternoon light streaming through high windows creating volumetric god rays and dust motes floating in the light beams, quiet peaceful atmosphere, absolutely no people no humans no figures nobody, spacious clean foreground area suitable for placing character sprites, calm and empty",
+   "has": true,
+   "usage": 1,
+   "src": "images/bg/rehearsal.png"
+  },
+  {
+   "key": "corridor",
+   "file": "corridor.png",
+   "group": "必出",
+   "name": "走廊",
+   "usage_note": "第2章走廊、各章转场",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, school corridor, lockers along the wall, large windows with afternoon light, dust in light beams, quiet, spring",
+   "has": true,
+   "usage": 2,
+   "src": "images/bg/corridor.png"
+  },
+  {
+   "key": "rooftop_sunset",
+   "file": "rooftop_sunset.png",
+   "group": "可选时段",
+   "name": "天台黄昏",
+   "usage_note": "（丰富时段情绪，推荐）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, empty high school rooftop, metal railing, clean open rooftop floor in the foreground with plenty of clear empty space for character sprites to stand on, no people, no humans, no figures, no characters, nobody, distant sea horizon, sea now darker with a shimmering sunset reflection, silhouetted shoreline, sea breeze, a few cherry blossom petals floating, dramatic orange and purple gradient sunset sky with layered clouds, warm low golden-hour light fading to magenta, sun touching the horizon",
+   "has": true,
+   "usage": 0,
+   "src": "images/bg/rooftop_sunset.png"
+  },
+  {
+   "key": "classroom_eve",
+   "file": "classroom_eve.png",
+   "group": "可选时段",
+   "name": "教室傍晚",
+   "usage_note": "（丰富时段情绪，推荐）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, interior of a high school classroom, rows of desks, green blackboard, large windows with evening dusk glow outside showing gradient orange and purple sky, warm desk-lamp light pools on the desks, empty and quiet, no people no humans no figures nobody, spacious clean foreground area suitable for placing character sprites, dust motes floating in the light beams, peaceful after-school atmosphere",
+   "has": true,
+   "usage": 0,
+   "src": "images/bg/classroom_eve.png"
+  },
+  {
+   "key": "library_eve",
+   "file": "library_eve.png",
+   "group": "可选时段",
+   "name": "图书馆傍晚",
+   "usage_note": "（丰富时段情绪，推荐）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, interior of an old Japanese high school library on the third floor, large floor-to-ceiling windows facing the deep blue sea horizon now dim with evening light, wooden bookshelves lining the walls filled with colorful hardcover books, a few empty reading desks and chairs pushed neatly aside, warm lamplight pools in the evening dim, quiet peaceful atmosphere, absolutely no people no humans no figures nobody, spacious clean foreground area suitable for placing character sprites, cherry blossom petals drifting near the window sill, dusk glow on the horizon",
+   "has": true,
+   "usage": 0,
+   "src": "images/bg/library_eve.png"
+  },
+  {
+   "key": "street_dusk",
+   "file": "street_dusk.png",
+   "group": "可选时段",
+   "name": "校门口黄昏",
+   "usage_note": "（丰富时段情绪，推荐）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, makoto shinkai style, anime movie still, vibrant youthful atmosphere, bright and airy, luminous clear lighting, vivid colors, cinematic composition, soft diffuse shadows, atmospheric perspective, rich detailed background, sparkling light, high quality, 8k, masterpiece, a high school front gate in the soft glowing dusk, an ornate wrought-iron school gate with a stone archway in the center, a clean paved path leading straight through the gate into the campus, in the far distance a multi-story school building with rows of large windows reflecting the warm sky light, silhouetted against the sky, the dusk sky is bright and translucent, a gentle gradient from warm peach and gold near the horizon to soft cyan and lavender high above, scattered soft glowing clouds, soft long shadows of the gate railings stretching across the path, a few roadside trees and a low hedge lining the path, warm pools of light from street lamps just beginning to glow, gentle floating dust motes and a few cherry blossom petals drifting in the air, peaceful lively youth campus mood, spacious clean foreground area suitable for placing character sprites, no people, no humans, no figures, no characters, nobody, no text, no letters, no words, no signboard, no plaque",
+   "has": true,
+   "usage": 0,
+   "src": "images/bg/street_dusk.png"
+  },
+  {
+   "key": "street",
+   "file": "street.png",
+   "group": "风格重绘",
+   "name": "校门口·重绘",
+   "usage_note": "替换引擎自带 street（统一风格）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, school gate with cherry blossom trees along the path, spring, students in uniform, blue sky with layered clouds, warm sunlight",
+   "has": true,
+   "usage": 9,
+   "src": "images/bg/street.png"
+  },
+  {
+   "key": "classroom",
+   "file": "classroom.png",
+   "group": "风格重绘",
+   "name": "教室·重绘",
+   "usage_note": "替换引擎自带 classroom（统一风格）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, high school classroom, desks in rows, green blackboard, bright window light, cheerful, blue sky outside window",
+   "has": true,
+   "usage": 9,
+   "src": "images/bg/classroom.png"
+  },
+  {
+   "key": "park_day",
+   "file": "park_day.png",
+   "group": "风格重绘",
+   "name": "樱花公园白天·重绘",
+   "usage_note": "替换引擎自带 park_day（统一风格）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, cherry blossom park, pink trees, falling petals, blue sky, a path, spring, bright",
+   "has": true,
+   "usage": 8,
+   "src": "images/bg/park_day.png"
+  },
+  {
+   "key": "park_night",
+   "file": "park_night.png",
+   "group": "风格重绘",
+   "name": "樱花公园夜·重绘",
+   "usage_note": "替换引擎自带 park_night（统一风格）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, cherry blossom park at night, soft lantern light, moonlight, petals on ground, calm, blue night sky",
+   "has": true,
+   "usage": 0,
+   "src": "images/bg/park_night.png"
+  },
+  {
+   "key": "river",
+   "file": "river.png",
+   "group": "风格重绘",
+   "name": "河边·重绘",
+   "usage_note": "替换引擎自带 river（统一风格）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, riverbank with cherry blossoms, water reflection, daytime, soft light, peaceful",
+   "has": true,
+   "usage": 0,
+   "src": "images/bg/river.png"
+  },
+  {
+   "key": "ending_bad",
+   "file": "ending_bad.png",
+   "group": "风格重绘",
+   "name": "结局·坏·重绘",
+   "usage_note": "替换引擎自带 ending_bad（统一风格）",
+   "positive": "makoto shinkai style, beautiful cinematic lighting, volumetric light, god rays, soft shadows, atmospheric, aerial perspective, detailed background, anime, high quality, 8k, masterpiece, empty school rooftop at sunset, lonely, melancholy, petals falling, cold beautiful light",
+   "has": true,
+   "usage": 0,
+   "src": "images/bg/ending_bad.png"
+  }
+ ],
+ "audio": [
+  {
+   "key": "bgm_morning",
+   "type": "BGM",
+   "usage": "校园清晨·轻快（第1-3章日常）",
+   "mood": "明亮、青春、轻盈",
+   "kw": "校园 轻音乐 / school morning anime BGM bright",
+   "required": true,
+   "has": false,
+   "usage_count": 5,
+   "intended": "audio/bgm_morning.mp3"
+  },
+  {
+   "key": "bgm_library",
+   "type": "BGM",
+   "usage": "图书馆·安静钢琴（第2/7/12章）",
+   "mood": "安静、内敛、书卷",
+   "kw": "安静 钢琴 / quiet piano library ambient",
+   "required": true,
+   "has": false,
+   "usage_count": 3,
+   "intended": "audio/bgm_library.mp3"
+  },
+  {
+   "key": "bgm_club",
+   "type": "BGM",
+   "usage": "社团招新·热闹（第3/5章）",
+   "mood": "欢快、拥挤、活力",
+   "kw": "热闹 社团 轻快 / festival cheerful bgm",
+   "required": true,
+   "has": false,
+   "usage_count": 7,
+   "intended": "audio/bgm_club.mp3"
+  },
+  {
+   "key": "bgm_tender",
+   "type": "BGM",
+   "usage": "感情线·温柔抒情（抉择/独白）",
+   "mood": "温柔、暧昧、留白",
+   "kw": "温柔 抒情 / tender romantic piano",
+   "required": true,
+   "has": false,
+   "usage_count": 12,
+   "intended": "audio/bgm_tender.mp3"
+  },
+  {
+   "key": "bgm_tense",
+   "type": "BGM",
+   "usage": "抉择/分离·低沉（第9-10/16章）",
+   "mood": "怅惘、压迫、离别",
+   "kw": "离别 钢琴 / bittersweet melancholy strings",
+   "required": true,
+   "has": false,
+   "usage_count": 4,
+   "intended": "audio/bgm_tense.mp3"
+  },
+  {
+   "key": "bgm_end_good",
+   "type": "BGM",
+   "usage": "结局·好（恋之光/TrueEnd）",
+   "mood": "圆满、暖光",
+   "kw": "温暖 结局 / warm happy ending theme",
+   "required": true,
+   "has": false,
+   "usage_count": 3,
+   "intended": "audio/bgm_end_good.mp3"
+  },
+  {
+   "key": "bgm_end_normal",
+   "type": "BGM",
+   "usage": "结局·普通（挚友）",
+   "mood": "平和、余韵",
+   "kw": "平静 结尾 / gentle ending theme",
+   "required": true,
+   "has": false,
+   "usage_count": 1,
+   "intended": "audio/bgm_end_normal.mp3"
+  },
+  {
+   "key": "bgm_end_bad",
+   "type": "BGM",
+   "usage": "结局·坏（遗憾）",
+   "mood": "空、成长向",
+   "kw": "遗憾 钢琴 / sad but hopeful ending",
+   "required": true,
+   "has": false,
+   "usage_count": 1,
+   "intended": "audio/bgm_end_bad.mp3"
+  },
+  {
+   "key": "se_wind",
+   "type": "SE",
+   "usage": "海风（校门口/天台/海边常驻）",
+   "mood": "环境音",
+   "kw": "海风 环境音 / ocean breeze wind loop",
+   "required": true,
+   "has": false,
+   "usage_count": 4,
+   "intended": "audio/se_wind.mp3"
+  },
+  {
+   "key": "se_bell",
+   "type": "SE",
+   "usage": "放学钟（第2/9/16章）",
+   "mood": "单次",
+   "kw": "学校 钟声 / school bell ring",
+   "required": true,
+   "has": false,
+   "usage_count": 1,
+   "intended": "audio/se_bell.mp3"
+  },
+  {
+   "key": "se_candy",
+   "type": "SE",
+   "usage": "糖纸/递糖（林晚线）",
+   "mood": "单次",
+   "kw": "糖果纸 沙沙 / candy wrapper rustle",
+   "required": true,
+   "has": false,
+   "usage_count": 2,
+   "intended": "audio/se_candy.mp3"
+  },
+  {
+   "key": "se_basketball",
+   "type": "SE",
+   "usage": "篮球弹地（周野线）",
+   "mood": "单次",
+   "kw": "篮球 弹地 / basketball bounce dribble",
+   "required": true,
+   "has": false,
+   "usage_count": 4,
+   "intended": "audio/se_basketball.mp3"
+  },
+  {
+   "key": "se_page",
+   "type": "SE",
+   "usage": "翻书（图书馆）",
+   "mood": "单次（可选）",
+   "kw": "翻书声 / book page turn",
+   "required": false,
+   "has": false,
+   "usage_count": 0,
+   "intended": "audio/se_page.mp3"
+  },
+  {
+   "key": "se_footstep",
+   "type": "SE",
+   "usage": "走廊脚步（转场）",
+   "mood": "单次（可选）",
+   "kw": "脚步 室内 / indoor footsteps",
+   "required": false,
+   "has": false,
+   "usage_count": 0,
+   "intended": "audio/se_footstep.mp3"
+  },
+  {
+   "key": "se_chime",
+   "type": "SE",
+   "usage": "樱花/天台轻提示（可选）",
+   "mood": "单次（可选）",
+   "kw": "风铃 / wind chime soft",
+   "required": false,
+   "has": false,
+   "usage_count": 0,
+   "intended": "audio/se_chime.mp3"
+  }
+ ]
+};
+const SUMMARY = {
+ "pose_total": 13,
+ "pose_has": 13,
+ "pose_used": 10,
+ "bg_total": 16,
+ "bg_has": 16,
+ "bg_used": 9,
+ "au_req": 12,
+ "au_has": 0,
+ "missing_bg": [],
+ "missing_audio": [
+  "bgm_morning",
+  "bgm_library",
+  "bgm_club",
+  "bgm_tender",
+  "bgm_tense",
+  "bgm_end_good",
+  "bgm_end_normal",
+  "bgm_end_bad",
+  "se_wind",
+  "se_bell",
+  "se_candy",
+  "se_basketball"
+ ],
+ "unused_pose": [
+  "linwan_surprised",
+  "shenzhiyao_surprised",
+  "zhouye_surprised"
+ ],
+ "unused_bg": [
+  "rooftop_sunset",
+  "classroom_eve",
+  "library_eve",
+  "street_dusk",
+  "park_night",
+  "river",
+  "ending_bad"
+ ]
+};
+document.getElementById('gen').textContent = DATA.generated;
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function statusOf(item){
+  if(!item.has) return 'miss';
+  if(item.usage===0) return 'unused';
+  return 'ok';
+}
+function statBadge(item){
+  const s=statusOf(item);
+  if(s==='ok') return '<span class="st ok">已有·引用'+item.usage+'</span>';
+  if(s==='unused') return '<span class="st unused">已有·未引用</span>';
+  return '<span class="st miss">缺失</span>';
+}
+// tabs
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('main section').forEach(x=>x.classList.add('hidden'));
+  t.classList.add('active');
+  document.getElementById('p-'+t.dataset.t).classList.remove('hidden');
+});
+// overview
+function renderOverview(){
+  const s=SUMMARY;
+  const posePct=Math.round(s.pose_has/s.pose_total*100), bgPct=Math.round(s.bg_has/s.bg_total*100), auPct=Math.round(s.au_has/s.au_req*100);
+  let h='<div class="stat-grid">';
+  h+=statCard('人物立绘 pose',''+s.pose_has+' / '+s.pose_total,'进度（应有→已有）',posePct);
+  h+=statCard('　└ 其中被脚本引用',''+s.pose_used+' / '+s.pose_total,'已接进剧情',Math.round(s.pose_used/s.pose_total*100));
+  h+=statCard('背景 Background',''+s.bg_has+' / '+s.bg_total,'进度（设计→已有）',bgPct);
+  h+=statCard('　└ 其中被脚本引用',''+s.bg_used+' / '+s.bg_total,'已接进剧情',Math.round(s.bg_used/s.bg_total*100));
+  h+=statCard('音频 Audio（必需）',''+s.au_has+' / '+s.au_req,'下载进度',auPct);
+  h+='</div>';
+  h+='<div class="lists">';
+  h+='<div class="box"><h3>🔴 缺失 · 待生成 / 待下载</h3>';
+  h+='<div class="lbl" style="color:var(--muted);font-size:12px;margin-bottom:6px">背景（'+s.missing_bg.length+'）</div>';
+  s.missing_bg.forEach(k=>h+='<span class="chip">'+esc(k)+'</span>');
+  h+='<div class="lbl" style="color:var(--muted);font-size:12px;margin:10px 0 6px">音频（必需，'+s.missing_audio.length+'）</div>';
+  s.missing_audio.forEach(k=>h+='<span class="chip">'+esc(k)+'</span>');
+  h+='</div>';
+  h+='<div class="box"><h3>🟡 已有但脚本 0 引用（冗余/未接入）</h3>';
+  h+='<div class="lbl" style="color:var(--muted);font-size:12px;margin-bottom:6px">立绘 pose</div>';
+  (s.unused_pose.length?s.unused_pose:[ '— 无 —']).forEach(k=>h+='<span class="chip">'+esc(k)+'</span>');
+  h+='<div class="lbl" style="color:var(--muted);font-size:12px;margin:10px 0 6px">背景</div>';
+  (s.unused_bg.length?s.unused_bg:[ '— 无 —']).forEach(k=>h+='<span class="chip">'+esc(k)+'</span>');
+  h+='</div>';
+  h+='</div>';
+  document.getElementById('p-overview').innerHTML=h;
+}
+function statCard(title,big,note,pct){
+  return '<div class="stat"><h3>'+esc(title)+'</h3><div class="big">'+esc(big)+'</div><div class="bar"><i style="width:'+pct+'%"></i></div><div class="note">'+esc(note)+'</div></div>';
+}
+// characters
+let charFilter='', charStatus='all';
+function renderChar(){
+  let h='<div class="controls"><input id="c-search" placeholder="搜索 角色/pose/文件名…" oninput="charFilter=this.value.toLowerCase();renderChar()">'
+    +'<select onchange="charStatus=this.value;renderChar()"><option value="all">全部状态</option><option value="ok">已有·已引用</option><option value="unused">已有·未引用</option><option value="miss">缺失</option></select></div>';
+  DATA.characters.forEach(c=>{
+    let poses=c.poses.filter(p=>{
+      const hay=(c.name+' '+p.pose+' '+p.file+' '+p.expr).toLowerCase();
+      if(charFilter && !hay.includes(charFilter)) return false;
+      const st=statusOf(p);
+      if(charStatus!=='all' && st!==charStatus) return false;
+      return true;
+    });
+    if(charFilter && poses.length===0 && !c.name.toLowerCase().includes(charFilter)) return;
+    h+='<div class="char-card">';
+    h+='<div class="char-head"><div class="nm">'+esc(c.name)+'</div>'
+      +'<div class="meta">id: <code>'+esc(c.id)+'</code></div>'
+      +'<div class="sig">签名物：'+esc(c.signature)+'</div></div>';
+    // ref
+    h+='<div class="ref-row"><span style="color:var(--muted);font-size:12px">定调参考图（IP-Adapter 源，不入引擎）：</span>';
+    if(c.ref_has) h+='<img class="ref-thumb" src="'+c.ref_src+'" title="'+esc(c.ref)+'">';
+    else h+='<div class="ref-thumb miss">'+esc(c.ref)+'<br>缺失</div>';
+    h+='<span class="mono" style="font-size:11px;color:var(--muted)">'+esc(c.ref)+'</span></div>';
+    h+='<div class="pose-grid">';
+    poses.forEach((p,idx)=>{
+      h+='<div class="pose" onclick="openPose(\''+c.id+'\','+idx+')">'+statBadge(p);
+      if(p.src) h+='<img class="thumb" src="'+p.src+'" loading="lazy">';
+      else h+='<div class="thumb miss">图缺失<br>待生成</div>';
+      h+='<div class="cap"><div class="fn">'+esc(p.file)+'</div><div class="cnt">pose: '+esc(p.pose)+' · 引用 '+p.usage+' 次</div></div></div>';
+    });
+    h+='</div></div>';
+  });
+  document.getElementById('p-char').innerHTML=h;
+}
+function openPose(cid,idx){
+  const c=DATA.characters.find(x=>x.id===cid); const p=c.poses[idx];
+  let body='<div class="lb-imgwrap">';
+  if(p.src) body+='<img class="lb-img" src="'+p.src+'">';
+  else body+='<div style="color:var(--muted);padding:40px">（图片尚未生成：'+esc(p.file)+'）</div>';
+  body+='</div><div class="lb-body"><h2>'+esc(c.name)+' · '+esc(p.pose)+'<span class="tag '+(statusOf(p)==='ok'?'ok':statusOf(p))+'">'+(statusOf(p)==='ok'?'已有·引用'+p.usage:statusOf(p)==='unused'?'已有·未引用':'缺失')+'</span></h2>';
+  body+='<div class="fn">'+esc(p.file)+'</div>';
+  body+='<div class="row"><div class="lbl">身份固定块 identity</div><pre>'+esc(c.identity)+'</pre></div>';
+  body+='<div class="row"><div class="lbl">表情追加词</div><pre>'+esc(p.expr)+'</pre></div>';
+  body+='<div class="row"><div class="lbl">完整正向提示词（前缀S + identity + 表情）</div><pre id="pp">'+esc(p.positive)+'</pre><button class="copy-btn" onclick="copyTxt(\'pp\')">复制正向提示词</button></div>';
+  body+='<div class="row"><div class="lbl">负向提示词（全局共用）</div><pre>'+esc(DATA.neg)+'</pre></div>';
+  body+='<div class="row" style="color:var(--muted);font-size:12px">脚本引用次数：'+p.usage+'</div>';
+  body+='</div>';
+  showLb(body);
+}
+// backgrounds
+let bgGroup='all', bgStatus='all';
+function renderBg(){
+  let h='<div class="controls"><select onchange="bgGroup=this.value;renderBg()"><option value="all">全部分组</option><option value="必出">必出</option><option value="可选时段">可选时段</option><option value="风格重绘">风格重绘</option></select>'
+    +'<select onchange="bgStatus=this.value;renderBg()"><option value="all">全部状态</option><option value="ok">已有</option><option value="miss">缺失</option></select>';
+  const groups=['必出','可选时段','风格重绘'];
+  groups.forEach(g=>{
+    if(bgGroup!=='all' && bgGroup!==g) return;
+    const items=DATA.backgrounds.filter(b=>b.group===g && (bgStatus==='all'||(bgStatus==='ok'&&b.has)||(bgStatus==='miss'&&!b.has)));
+    if(items.length===0) return;
+    h+='<div class="group-title">'+esc(g)+'</div><div class="bg-grid">';
+    items.forEach((b,idx)=>{
+      h+='<div class="bg-card" onclick="openBg(\''+b.key+'\')">'+statBadge(b);
+      if(b.src) h+='<img class="thumb" src="'+b.src+'" loading="lazy">';
+      else h+='<div class="thumb miss">图缺失<br>待生成</div>';
+      h+='<div class="cap"><div class="nm">'+esc(b.name)+'</div><div class="kk">'+esc(b.key)+'</div><div class="cnt">引用 '+b.usage+' 次</div></div></div>';
+    });
+    h+='</div>';
+  });
+  document.getElementById('p-bg').innerHTML=h;
+}
+function openBg(key){
+  const b=DATA.backgrounds.find(x=>x.key===key);
+  let body='<div class="lb-imgwrap">';
+  if(b.src) body+='<img class="lb-img" src="'+b.src+'">';
+  else body+='<div style="color:var(--muted);padding:40px">（图片尚未生成：'+esc(b.file)+'）</div>';
+  body+='</div><div class="lb-body"><h2>'+esc(b.name)+'<span class="tag '+(b.has?'ok':'miss')+'">'+(b.has?'已有·引用'+b.usage:'缺失')+'</span></h2>';
+  body+='<div class="fn">'+esc(b.file)+' · 键位 <code>'+esc(b.key)+'</code> · 分组 '+esc(b.group)+'</div>';
+  body+='<div class="row"><div class="lbl">使用 / 出现章节</div><pre>'+esc(b.usage_note)+'</pre></div>';
+  body+='<div class="row"><div class="lbl">完整正向提示词（前缀P + specific）</div><pre id="pp">'+esc(b.positive)+'</pre><button class="copy-btn" onclick="copyTxt(\'pp\')">复制正向提示词</button></div>';
+  body+='<div class="row"><div class="lbl">负向提示词（全局共用）</div><pre>'+esc(DATA.neg)+'</pre></div>';
+  body+='<div class="row" style="color:var(--muted);font-size:12px">脚本引用次数：'+b.usage+'</div>';
+  body+='</div>';
+  showLb(body);
+}
+// audio
+let auFilter='all';
+function renderAudio(){
+  let h='<div class="controls"><select onchange="auFilter=this.value;renderAudio()"><option value="all">全部</option><option value="req">仅必需</option><option value="opt">仅可选</option><option value="miss">仅缺失</option></select></div>';
+  h+='<table><thead><tr><th>键位</th><th>类型</th><th>用途 / 出现章节</th><th>情绪</th><th>搜索关键词</th><th>状态</th><th>脚本引用</th></tr></thead><tbody>';
+  DATA.audio.filter(a=>{
+    if(auFilter==='req') return a.required;
+    if(auFilter==='opt') return !a.required;
+    if(auFilter==='miss') return !a.has;
+    return true;
+  }).forEach(a=>{
+    const cls=a.has?'ok':'miss';
+    const tag=a.has?'<span class="tag ok">已下载</span>':'<span class="tag miss">待下载</span>';
+    const req=a.required?'':'<span class="req-no">（可选）</span>';
+    h+='<tr><td class="mono">'+esc(a.key)+req+'</td><td>'+esc(a.type)+'</td><td>'+esc(a.usage)+'</td><td>'+esc(a.mood)+'</td><td>'+esc(a.kw)+'</td><td>'+tag+'</td><td>'+a.usage_count+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='<div style="color:var(--muted);font-size:12px;margin-top:10px">下载后放入 <code>avg-engine/public/audio/</code>，文件名＝键位名（如 <code>bgm_morning.mp3</code>），并在 story3/manifest.ts 的 audio 字段登记。注意：清单若列了缺失文件，loadAudio 会因 404 抛错导致游戏启动崩溃，故未下载前 manifest 必须留空。</div>';
+  document.getElementById('p-audio').innerHTML=h;
+}
+// lightbox
+function showLb(html){document.getElementById('lb-content').innerHTML=html;document.getElementById('lb').classList.add('show');}
+function closeLb(){document.getElementById('lb').classList.remove('show');}
+document.getElementById('lb').onclick=e=>{if(e.target.id==='lb')closeLb();};
+function copyTxt(id){const t=document.getElementById(id).textContent;navigator.clipboard.writeText(t).then(()=>{alert('已复制提示词');});}
+// init
+renderOverview();renderChar();renderBg();renderAudio();
+document.getElementById('t-char').textContent=SUMMARY.pose_has+'/'+SUMMARY.pose_total;
+document.getElementById('t-bg').textContent=SUMMARY.bg_has+'/'+SUMMARY.bg_total;
+document.getElementById('t-audio').textContent=SUMMARY.au_has+'/'+SUMMARY.au_req;
+</script>
+</body>
+</html>

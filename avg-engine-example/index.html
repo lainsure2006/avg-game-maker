@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AVG 冒险游戏引擎</title>
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="ui-layer">
+      <!-- 首页菜单 -->
+      <div id="title-menu" class="hidden">
+        <div class="title-menu-inner">
+          <button id="btn-title-start" class="title-menu-btn">
+            <span class="btn-label">开始游戏</span>
+            <span class="btn-sub">NEW GAME</span>
+          </button>
+          <button id="btn-title-continue" class="title-menu-btn hidden">
+            <span class="btn-label">继续游戏</span>
+            <span class="btn-sub">CONTINUE</span>
+          </button>
+          <button id="btn-title-settings" class="title-menu-btn">
+            <span class="btn-label">游戏设置</span>
+            <span class="btn-sub">SETTINGS</span>
+          </button>
+          <button id="btn-title-quit" class="title-menu-btn">
+            <span class="btn-label">选择故事</span>
+            <span class="btn-sub">STORIES</span>
+          </button>
+          <button id="btn-title-gallery" class="title-menu-btn">
+            <span class="btn-label">结局收集</span>
+            <span class="btn-sub">GALLERY</span>
+          </button>
+        </div>
+      </div>
+      <!-- 对话框 -->
+      <div id="dialog-box" class="hidden">
+        <div id="speaker-name"></div>
+        <div id="dialog-text"></div>
+        <div id="click-indicator">▼</div>
+      </div>
+      <!-- 选项面板 -->
+      <div id="choice-panel" class="hidden"></div>
+      <!-- 顶部控制栏 -->
+      <div id="top-bar">
+        <button id="btn-auto" title="自动播放">自动</button>
+        <button id="btn-skip" title="快进">快进</button>
+        <button id="btn-save" title="存档">存档</button>
+        <button id="btn-load" title="读档">读档</button>
+        <button id="btn-settings" title="设置">设置</button>
+        <button id="btn-backlog" title="历史">历史</button>
+      </div>
+      <!-- 存档面板 -->
+      <div id="save-load-panel" class="hidden">
+        <div class="panel-header">
+          <h2 id="save-load-title">存档</h2>
+          <button id="btn-save-load-close">✕</button>
+        </div>
+        <div class="panel-tabs">
+          <button class="tab active" data-tab="save">存档</button>
+          <button class="tab" data-tab="load">读档</button>
+        </div>
+        <div id="save-slots" class="slot-list"></div>
+      </div>
+      <!-- 设置面板 -->
+      <div id="settings-panel" class="hidden">
+        <div class="panel-header">
+          <h2>设置</h2>
+          <button id="btn-settings-close">✕</button>
+        </div>
+        <div class="settings-content">
+          <div class="setting-row">
+            <label>文字速度</label>
+            <input type="range" id="setting-text-speed" min="1" max="10" value="5" />
+          </div>
+          <div class="setting-row">
+            <label>自动播放间隔</label>
+            <input type="range" id="setting-auto-delay" min="1" max="10" value="5" />
+          </div>
+          <div class="setting-row">
+            <label>BGM音量</label>
+            <input type="range" id="setting-bgm-volume" min="0" max="100" value="70" />
+          </div>
+          <div class="setting-row">
+            <label>音效音量</label>
+            <input type="range" id="setting-se-volume" min="0" max="100" value="80" />
+          </div>
+          <div class="setting-row">
+            <label>文字大小</label>
+            <select id="setting-font-size">
+              <option value="small">小</option>
+              <option value="medium" selected>中</option>
+              <option value="large">大</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <!-- 故事选择面板 -->
+      <div id="story-select-panel" class="hidden">
+        <div class="panel-header">
+          <h2>选择故事</h2>
+          <button id="btn-story-select-close">✕</button>
+        </div>
+        <div id="story-list" class="story-list"></div>
+      </div>
+      <!-- 结局收集相册面板 -->
+      <div id="ending-gallery-panel" class="hidden">
+        <div class="panel-header">
+          <h2>结局收集</h2>
+          <button id="btn-gallery-close">✕</button>
+        </div>
+        <div id="ending-gallery-grid" class="ending-grid"></div>
+      </div>
+      <!-- 结局详情浮层 -->
+      <div id="ending-detail-modal" class="hidden">
+        <div id="ending-detail-body"></div>
+      </div>
+      <!-- 结局抵达提示浮层 -->
+      <div id="ending-modal" class="hidden">
+        <div class="ending-modal-card">
+          <div class="ending-modal-badge">🎉 通关</div>
+          <h2 id="ending-modal-title">剧终</h2>
+          <p id="ending-modal-body"></p>
+          <div class="ending-modal-actions">
+            <button id="btn-ending-gallery" class="title-menu-btn">
+              <span class="btn-label">查看结局收集</span>
+            </button>
+            <button id="btn-ending-title" class="title-menu-btn primary">
+              <span class="btn-label">返回标题</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <!-- 对话历史 -->
+      <div id="backlog-panel" class="hidden">
+        <div class="panel-header">
+          <h2>对话历史</h2>
+          <button id="btn-backlog-close">✕</button>
+        </div>
+        <div id="backlog-content"></div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "avg-engine",
+  "version": "1.0.0",
+  "description": "A lightweight AVG (Adventure Game) engine for the web",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

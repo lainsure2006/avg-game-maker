@@ -1,0 +1,42 @@
+// story4 雾港回声 —— manifest.sprites 片段（直接粘贴）
+// 共 21 张；命名 `<id>_<pose>`，与剧本 char 指令的 id/pose 对齐。
+    luzhao: {
+      default:    '/images/sprite/fogport/luzhao_default.png',
+      cold:       '/images/sprite/fogport/luzhao_cold.png',
+      softer:     '/images/sprite/fogport/luzhao_softer.png',
+      side:       '/images/sprite/fogport/luzhao_side.png',
+    },
+    jiangyan: {
+      default:    '/images/sprite/fogport/jiangyan_default.png',
+      tense:      '/images/sprite/fogport/jiangyan_tense.png',
+      calm:       '/images/sprite/fogport/jiangyan_calm.png',
+      sit:        '/images/sprite/fogport/jiangyan_sit.png',
+    },
+    luzhensheng: {
+      default:    '/images/sprite/fogport/luzhensheng_default.png',
+      side:       '/images/sprite/fogport/luzhensheng_side.png',
+    },
+    zhouyu: {
+      default:    '/images/sprite/fogport/zhouyu_default.png',
+      serious:    '/images/sprite/fogport/zhouyu_serious.png',
+      tired:      '/images/sprite/fogport/zhouyu_tired.png',
+      side:       '/images/sprite/fogport/zhouyu_side.png',
+    },
+    zhaoyongnian: {
+      default:    '/images/sprite/fogport/zhaoyongnian_default.png',
+      guarded:    '/images/sprite/fogport/zhaoyongnian_guarded.png',
+    },
+    wujingdong: {
+      default:    '/images/sprite/fogport/wujingdong_default.png',
+      recall:     '/images/sprite/fogport/wujingdong_recall.png',
+    },
+    laochen: {
+      default:    '/images/sprite/fogport/laochen_default.png',
+    },
+    laosun: {
+      default:    '/images/sprite/fogport/laosun_default.png',
+    },
+    old_postman: {
+      default:    '/images/sprite/fogport/old_postman_default.png',
+    },
+  },

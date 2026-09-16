@@ -18,8 +18,27 @@ avg-game-maker/
 │   ├── g2-item-art.md                # 物件图产线（透视贴图/排版/校验）
 │   ├── engine-conventions.md         # 引擎坑与约定
 │   └── engine-asset-catalog.md
-└── scripts/                # 21 个通用 Python 工具（见下）
+├── scripts/                # 21 个通用 Python 工具（见下，已脱敏泛化）
+├── companion-skills/       # 3 个出图配套 skill（已脱敏，本机路径→占位符）
+│   ├── krea2-persona-sheet/SKILL.md  # 人物资产参考图 / 角色设定表（Krea2）
+│   ├── krea2-scene-sheet/SKILL.md    # 同一场景多角度参考图
+│   └── comfy-cloud-mcp/SKILL.md      # 本地 bridge 调用云端 ComfyUI
+├── workflows/              # 出图工作流（本地 JSON + 提交脚本，非云端）
+│   ├── comfyui-api-A10.json          # z-image-turbo 文生图（story3 动漫少女）
+│   ├── krea2_charsheet_real.json     # Krea2 真人版角色表
+│   ├── krea2_charsheet_anime.json    # Krea2 + 二次元 LoRA 角色表
+│   ├── Krea2_Turbo_文生图_成功配置.json  # Krea2 完整成功配置
+│   ├── krea2_wf.json                 # Krea2EditRebalance 改图流
+│   ├── comfy_krea2_sheet.py          # 云端提交脚本（角色表）
+│   ├── comfy_krea2_scene.py          # 云端提交脚本（场景）
+│   └── assetref_kit/                 # 场景参考图工具包（krea2-scene-sheet 依赖）
+├── cloud-setup.md          # 云端/本地 ComfyUI 准备清单（模型/节点/部署）
+└── avg-engine-example/     # 引擎 + 2 故事干净快照（含 story3+story4+public 资源，~407MB）
 ```
+
+> **脱敏说明**：`SKILL.md` / `references/` / `companion-skills/` / `workflows/*.py` 中所有作者本机路径
+>（`E:\myprogram\...`、`C:\Users\Administrator\...`）已统一替换为 `<avg-engine>` / `<project>` / `<home>` 占位符。
+> **模型文件与作者的云端不会随包分发**——出图所需的模型见 `cloud-setup.md`，需使用者自备。
 
 ---
 
@@ -35,17 +54,46 @@ avg-game-maker/
 
 ---
 
-## 依赖的配套 Skill
+## 依赖的配套 Skill（已随包提供，无需另装）
 
-`avg-game-maker` 在「出图」环节会指向以下独立 skill，需另行安装：
+`avg-game-maker` 在「出图」环节会指向以下独立 skill，本包已将它们放在 `companion-skills/`（已脱敏）：
 
-| Skill | 用途 |
-|---|---|
-| `krea2-persona-sheet` | 人物资产参考图 / 角色设定表 / 单人立绘（Krea2 方案） |
-| `krea2-scene-sheet` | 同一场景多角度参考图（避免场景漂移） |
-| `comfy-cloud-mcp` | 通过本地 bridge 调用云端 ComfyUI 出图/查模型 |
+| Skill | 用途 | 包内路径 |
+|---|---|---|
+| `krea2-persona-sheet` | 人物资产参考图 / 角色设定表 / 单人立绘（Krea2 方案） | `companion-skills/krea2-persona-sheet/SKILL.md` |
+| `krea2-scene-sheet` | 同一场景多角度参考图（避免场景漂移） | `companion-skills/krea2-scene-sheet/SKILL.md` |
+| `comfy-cloud-mcp` | 通过本地 bridge 调用云端 ComfyUI 出图/查模型 | `companion-skills/comfy-cloud-mcp/SKILL.md` |
+
+> ⚠️ **配套 skill 不绑定作者的云端**：它们只描述方法 + 工作流。**模型文件、ComfyUI 服务、云端实例地址都要使用者自己准备**——详见 `cloud-setup.md`。作者的云端实例地址是运行期向用户索取的，不写死在包里。
 
 > 出图方案**不强制**用上述 Krea2/ComfyUI 方案——`SKILL.md` 第 27 行起明确要求「开工前先确认用哪种出图方案」，选好再适配即可。
+
+---
+
+## 出图工作流与云端准备（`workflows/` + `cloud-setup.md`）
+
+- **工作流 JSON 在本地，不在云端**：`workflows/*.json` 是 ComfyUI API 格式工作流，直接 POST 到 `127.0.0.1:8188`（云端桥接或本地 ComfyUI 皆可）。
+- **提交脚本**：`workflows/comfy_krea2_sheet.py`（角色表）、`comfy_krea2_scene.py`（场景），用法见各自 `--help`。
+- **云端/本地需要准备什么**：模型清单（Krea2 三件套 + z-image 三件套 + LoRA）、自定义节点、采样参数、本地 ComfyUI 部署步骤——全部写在 **`cloud-setup.md`**。没有作者云端的人，按该文件自备即可跑通。
+
+---
+
+## 引擎示例（`avg-engine-example/`）
+
+本包附带一份**引擎 + 2 个完整故事的干净快照**（已排除 `node_modules/dist/.git` 与构建验证垃圾，约 407MB），让你开箱即玩、对照学习：
+
+- 引擎：TS + Vite 的 AVG 引擎（`index.html` / `src/engine` / `src/ui` / `src/game`）
+- 故事：`src/game/story3`（校园日系《樱色未央》，4 结局）+ `src/game/story4`（都市悬疑《雾港回声》，3 结局）
+- 资源：`public/`（132 张图 + 23 个音频 wav）
+
+运行方式（在 `avg-engine-example/` 内）：
+```bash
+npm install      # 首次需装依赖（不随包，需联网）
+npm run dev      # 启动后开 http://localhost:3000 试玩
+# 或 npm run build && 把 dist/ 丢到任意静态托管
+```
+
+> 引擎会自动发现 `src/game/storyN/` 目录，无需改 `index.ts`。要加新故事，照 `references/step6-game-authoring.md` 的「四件套」范式新建 `storyN/` 即可。
 
 ---
 
