@@ -33,7 +33,7 @@ avg-game-maker/
 │   ├── comfy_krea2_scene.py          # 云端提交脚本（场景）
 │   └── assetref_kit/                 # 场景参考图工具包（krea2-scene-sheet 依赖）
 ├── cloud-setup.md          # 云端/本地 ComfyUI 准备清单（模型/节点/部署）
-└── avg-engine-example/     # 引擎 + 2 故事干净快照（含 story3+story4+public 资源，~407MB）
+└── avg-engine-example/     # 引擎 + 2 故事干净快照（含 story3+story5(jianmo)+public 资源，~527MB）
 ```
 
 > **脱敏说明**：`SKILL.md` / `references/` / `companion-skills/` / `workflows/*.py` 中所有作者本机路径
@@ -80,7 +80,7 @@ avg-game-maker/
 
 ## 引擎示例（`avg-engine-example/`）
 
-本包附带一份**引擎 + 2 个完整故事的干净快照**（已排除 `node_modules/dist/.git` 与构建验证垃圾，约 407MB），让你开箱即玩、对照学习：
+本包附带一份**引擎 + 2 个完整故事的干净快照**（已排除 `node_modules/dist/.git` 与构建验证垃圾、以及出图/诊断中间产物，约 527MB），让你开箱即玩、对照学习：
 
 - 引擎：TS + Vite 的 AVG 引擎（`index.html` / `src/engine` / `src/ui` / `src/game`）
 - 故事：`src/game/story3`（校园日系《樱色未央》，4 结局）+ `src/game/story4`（都市悬疑《雾港回声》，3 结局）

@@ -225,7 +225,7 @@ kickoff and adapt.
   作为审核、测试、快速定位素材的工具（不是可选项）：
   - 命令（在 `<project>/story-wip/素材/` 下运行）：
     `python gen_asset_viewer.py --story story<N> --engine <avg-engine根> [--meta <中文名json>] [--out <输出html>]`
-  - 输出：`public/resource-manager-<N>.html`（story4 因历史命名沿用 `resource-manager-fogport.html`）。
+  - 输出：`public/resource-manager-<N>.html`（当前 story5 命名为 `jianmo_asset_viewer.html`）。
   - 功能：6 个 tab（概览 / 背景 / CG / 人物 / 物证 / 音频）。浏览器用 `<img onerror>` **自动检测磁盘缺失**
     —— 红框 = 引擎会 404；任意图点开放大核对。音频状态由生成器**实测 `public/` 下文件存在性**得出
     （"待采购" = 磁盘无该文件，登记必崩），比手写静态清单可靠。
