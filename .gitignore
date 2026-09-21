@@ -1,0 +1,6 @@
+# 根目录零散日志（忽略）
+extract_log.txt
+
+# 配套 companion-skills（下版待补发 CNB，本期暂不入库；防 git add -A 误带；下版发时删除下方 2 行）
+companion-skills/krea2-local-inpaint/
+companion-skills/sprite-matte-local/
