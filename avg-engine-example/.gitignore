@@ -19,3 +19,12 @@ __pycache__/
 **/_diag_*
 **/_stage_ingame_*
 **/_yanxi_*
+
+# 旧 fogport 演示残留（本地保留但不入库）
+src/game/story4/
+public/images/bg/fogport/
+public/images/sprite/fogport/
+public/resource-manager-fogport.html
+
+# 开发草稿/中间产物（不入库）
+story-wip/素材/
