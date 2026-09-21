@@ -14,17 +14,24 @@ body {
   font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
   user-select: none;
   -webkit-user-select: none;
-}
-
-#game-container {
-  position: relative;
+  /* 舞台居中：大屏时游戏舞台等比放大填满可视区，靠 CSS flex 双轴居中 */
   width: 100vw;
   height: 100vh;
-  max-width: 1280px;
-  max-height: 720px;
-  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 游戏舞台：恒为 16:9，按「contain」填满视口 —— 画面自动放大/缩小但绝不变形。
+   取「视口宽」与「按视口高换算的 16:9 宽」中较小者作为宽，高式与之互补，
+   两式配合结果必然精确等于 16:9；仅在窗口宽高比不是 16:9 时于长边留细黑边。
+   注：画布内部分辨率由 Renderer.resize() 读取本容器实际尺寸决定（原生分辨率渲染，清晰），
+   DOM UI 层则由 --ui-scale 按同一比例整体缩放（见 main.ts applyStageScale）。 */
+#game-container {
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
   overflow: hidden;
-  aspect-ratio: 16 / 9;
 }
 
 #game-canvas {
@@ -35,12 +42,17 @@ body {
   height: 100%;
 }
 
+/* DOM UI 覆盖层：以 1280×720 为设计基准像素布局，再整体等比缩放到舞台实际尺寸
+   （--ui-scale = 舞台宽 / 1280，由 main.ts 在加载与 resize 时写入）。
+   这样对话框/顶栏/菜单与画布内容保持同样比例 —— 大屏不显小、小屏不溢出。 */
 #ui-layer {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 1280px;
+  height: 720px;
+  transform: scale(var(--ui-scale, 1));
+  transform-origin: top left;
   pointer-events: none;
 }
 

@@ -56,10 +56,17 @@ async function loadStory(storyId: string): Promise<void> {
 
     console.log(`[引擎] 故事 "${story.title}" 加载完成！`);
 
-    // 恢复音频上下文（需要用户交互）
-    document.addEventListener('click', () => {
-      engine.audio?.resume();
-    }, { once: true });
+    // 浏览器 autoplay 策略：无用户手势前 AudioContext 处于 suspended，标题屏 BGM 会被拦截无法自动播放。
+    // 注册首次用户手势（pointerdown/keydown/touchstart）解锁音频；若解锁时仍在标题屏，则补播主题曲。
+    const unlockAudio = () => {
+      engine.resumeAudio().then(() => engine.replayTitleBgm());
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+    window.addEventListener('pointerdown', unlockAudio);
+    window.addEventListener('keydown', unlockAudio);
+    window.addEventListener('touchstart', unlockAudio);
 
     engine.start();
   } catch (err) {
@@ -67,11 +74,34 @@ async function loadStory(storyId: string): Promise<void> {
   }
 }
 
+/** 舞台设计基准宽度（与 main.css 中 #ui-layer 的固定宽度一致） */
+const STAGE_DESIGN_WIDTH = 1280;
+
+/**
+ * 让 DOM UI 层（对话框 / 顶栏 / 菜单等）随游戏舞台等比缩放。
+ * 画布由 Renderer 按舞台实际尺寸自适应渲染（原生分辨率，清晰），而 DOM 覆盖层
+ * 是固定像素布局，必须按同一比例 transform 缩放，才能与画布内容视觉等比例：
+ * 大屏不显小、小屏不溢出。舞台本身恒为 16:9，故只需一个缩放比。
+ */
+function applyStageScale(): void {
+  const container = document.getElementById('game-container');
+  const uiLayer = document.getElementById('ui-layer');
+  if (!container || !uiLayer) return;
+  const scale = container.clientWidth / STAGE_DESIGN_WIDTH;
+  if (scale > 0) {
+    uiLayer.style.setProperty('--ui-scale', String(scale));
+  }
+}
+
+// 舞台尺寸随窗口变化 → 同步刷新 UI 缩放
+window.addEventListener('resize', applyStageScale);
+
 // 注册故事切换处理器（供 UIManager 通过 game/index.ts 调用）
 registerSwitchStoryHandler(loadStory);
 
 // 页面加载完成后启动
 window.addEventListener('DOMContentLoaded', () => {
+  applyStageScale();
   loadStory(DEFAULT_STORY_ID);
 });
 

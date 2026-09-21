@@ -1,0 +1,6 @@
+medical_cover	OK	D:\avg-game-maker-skill\avg-engine-example\public\images\items\jianmo\medical_cover.png
+medical_sign	OK	D:\avg-game-maker-skill\avg-engine-example\public\images\items\jianmo\medical_sign.png
+silver_bracelet	OK	D:\avg-game-maker-skill\avg-engine-example\public\images\items\jianmo\silver_bracelet.png
+old_photo	OK	D:\avg-game-maker-skill\avg-engine-example\public\images\items\jianmo\old_photo.png
+evidence_bag	OK	D:\avg-game-maker-skill\avg-engine-example\public\images\items\jianmo\evidence_bag.png
+parents_badge	OK	D:\avg-game-maker-skill\avg-engine-example\public\images\items\jianmo\parents_badge.png

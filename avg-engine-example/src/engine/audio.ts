@@ -55,6 +55,11 @@ export class AudioManager {
     this.bgmSource.start();
   }
 
+  /** 获取当前正在播放的 BGM id（用于存档/读档恢复音频状态） */
+  getCurrentBgmId(): string | null {
+    return this.currentBgmId;
+  }
+
   /** 停止 BGM */
   stopBgm(): void {
     this.fadeToken++; // 使挂起的淡出回调失效

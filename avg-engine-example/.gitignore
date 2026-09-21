@@ -4,3 +4,18 @@ dist_verify*/
 dist_check*/
 .workbuddy/
 *.log
+
+# Python
+__pycache__/
+*.pyc
+
+# ComfyUI 美术生成/测试中间产物（非游戏运行必需，排除入库）
+**/jianmo_bg/
+**/jianmo_inpaint/
+**/jianmo_portraits/
+**/jianmo_sheets_real/
+**/jianmo_style_test/
+**/jianmo_style_test_real/
+**/_diag_*
+**/_stage_ingame_*
+**/_yanxi_*

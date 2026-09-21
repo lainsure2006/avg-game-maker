@@ -122,6 +122,8 @@ export interface SaveData {
 
 export interface SerializedGameState {
   currentCommandIndex: number;
+  /** 读档时正在播放的 BGM id（null 表示当时静默）；用于读档后恢复游戏音频 */
+  bgmId: string | null;
   variables: Record<string, number | string | boolean>;
   flags: string[];
   backlog: BacklogEntry[];

@@ -93,6 +93,8 @@ export class GameEngine {
   // 首页
   private titleScreen: TitleScreenConfig | null = null;
   private onTitleScreen: boolean = false;
+  /** 当前"应当在播放"的 BGM id（标题屏/读档设置），用于首次用户手势解锁音频后补播 */
+  private desiredBgmId: string | null = null;
   private titleBgImage: HTMLImageElement | null = null;
   private titleMenuIndex: number = 0;
   /** 首页动效：'rain' 飘雨 | 'none' 静止（无开头动画时默认飘雨，加分项） */
@@ -205,7 +207,10 @@ export class GameEngine {
       let id: string | null = a['bgm_title'] ? 'bgm_title' : null;
       if (!id && a['bgm_main']) id = 'bgm_main';
       if (!id) id = Object.keys(a).find(k => k.startsWith('bgm')) ?? null;
-      if (id) this.audio.playBgm(id);
+      if (id) {
+        this.desiredBgmId = id; // 记下标题屏本应在播的 BGM，供首次手势解锁后补播
+        this.audio.playBgm(id);
+      }
     }
     this.onTitleScreenChange?.(true);
   }
@@ -230,8 +235,13 @@ export class GameEngine {
     this.onTitleScreen = false;
     this.onTitleScreenChange?.(false);
 
-    // 停掉首页 BGM（存档不保存 BGM 状态，读档后由后续 bgm 指令决定播放什么）
+    // 停掉首页 BGM（读档必然离开标题屏）；随后按存档时正在播放的 BGM 恢复游戏音频，
+    // 避免"读档后 title 主题曲残留 / 游戏 BGM 静默"——存档已记录当时 BGM id。
     this.audio?.stopBgm();
+    if (state.bgmId) {
+      this.desiredBgmId = state.bgmId; // 记下读档时正在播放的 BGM，供首次手势解锁后补播
+      this.audio?.playBgm(state.bgmId); // 未注册的 id 安全 no-op（如待补的 night/tension/tender）
+    }
 
     // 恢复场景
     if (state.scene.bg && this.manifest) {
@@ -802,6 +812,8 @@ export class GameEngine {
         // 隐藏首页，进入游戏
         this.onTitleScreen = false;
         this.onTitleScreenChange?.(false);
+        this.desiredBgmId = null; // 离开标题屏，后续 BGM 由剧本指令接管
+        this.audio?.stopBgm(); // 停掉标题屏 BGM，交给定本第一条 bgm 指令接管
         this.startGameLoop();
         break;
       case 'continue':
@@ -821,6 +833,24 @@ export class GameEngine {
   /** 是否在首页 */
   isOnTitleScreen(): boolean {
     return this.onTitleScreen;
+  }
+
+  /**
+   * 解锁音频上下文（浏览器 autoplay 策略：无用户手势前 AudioContext 处于 suspended，
+   * 标题屏 BGM 因此被拦截无法自动播放；须由首次用户手势触发 resume）。
+   */
+  async resumeAudio(): Promise<void> {
+    await this.audio?.resume();
+  }
+
+  /**
+   * 首次用户手势解锁音频后，若仍在标题屏、且本应在播的 BGM 因 autoplay 被拦截未真正出声，
+   * 则显式补播（避免「进游戏前标题曲一直静音」）。进入游戏后由剧本指令接管，不在此补播。
+   */
+  replayTitleBgm(): void {
+    if (this.onTitleScreen && this.desiredBgmId) {
+      this.audio?.playBgm(this.desiredBgmId);
+    }
   }
 
   /** 用户点击/推进 */
@@ -907,6 +937,7 @@ export class GameEngine {
   getSaveState(label: string): SerializedGameState {
     return {
       currentCommandIndex: this.commandIndex,
+      bgmId: this.audio?.getCurrentBgmId() ?? null,
       variables: this.variables.export(),
       flags: this.variables.exportFlags(),
       backlog: this.backlog,
