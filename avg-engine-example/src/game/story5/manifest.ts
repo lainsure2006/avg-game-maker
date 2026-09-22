@@ -6,7 +6,7 @@
  *
  * 落位现状（Step 5 冻结 + Step 6 落位）：
  *  - 背景 15 + CG 8 = 23 张   → 已落 public/images/bg/jianmo/（pier_dusk/reef/cliff 用 __16x9 裁切版）
- *  - 立绘 4 角色 7 pose        → 已落 public/images/sprite/jianmo/（本机 rembg 抠图 + 归一化 1080x1080）
+ *  - 立绘 4 角色 9 pose        → 已落 public/images/sprite/jianmo/（本机 rembg 抠图 + 归一化 1080x1080；gucheng +calm/sad，2026-09-22）
  *  - SE 6                     → 已落 public/audio/jianmo/（AI 程序化合成 WAV）
  *  - BGM 6                    → 已全入（arrival/day/title 2026-09-20；night/tension/tender 2026-09-21，用户提供 WAV，均已落 public/audio/jianmo/）
  *  - 物件 6                   → ⚠️ 未产出，仍登记 manifest.items（renderer 已登记但 src 缺失 → 显示「物件图片缺失」占位，可关闭，不崩）
@@ -44,11 +44,13 @@ export const manifest: AssetManifest = {
     cg_departure:     '/images/bg/jianmo/cg_departure.png',
   },
 
-  // —— 4 角色 7 pose（本机 rembg 抠图 + 归一化）——
+  // —— 4 角色 9 pose（本机 rembg 抠图 + 归一化；gucheng +calm/sad 2026-09-22 验证 gate 通过）——
   sprites: {
     gucheng: {
       default: '/images/sprite/jianmo/gucheng_default.png',
       serious: '/images/sprite/jianmo/gucheng_serious.png',
+      calm:    '/images/sprite/jianmo/gucheng_calm.png',
+      sad:     '/images/sprite/jianmo/gucheng_sad.png',
     },
     sulan: {
       default: '/images/sprite/jianmo/sulan_default.png',
