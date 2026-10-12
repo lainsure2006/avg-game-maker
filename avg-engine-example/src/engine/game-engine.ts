@@ -16,6 +16,8 @@ import type {
   TitleScreenAction,
   RelationDef,
   EventDef,
+  ClueDef,
+  DeductionDef,
 } from './types';
 import { Renderer } from './renderer';
 import { VariableSystem } from './variables';
@@ -66,6 +68,11 @@ export class GameEngine {
   // 养成系统（阶段1）：角色档案 + 事件监视表（init 时预扫描登记，读档安全）
   private relations: Map<string, RelationDef> = new Map();
   private eventList: EventDef[] = [];
+
+  // 线索系统（阶段2）：线索 def（init 预扫描）+ 已拥有集合 + 推理规则表（init 预扫描）
+  private clueDefs: Map<string, ClueDef> = new Map();
+  private ownedClues: Set<string> = new Set();
+  private deductionList: DeductionDef[] = [];
 
   // 状态
   private characters: Map<string, CharacterState> = new Map();
@@ -132,6 +139,10 @@ export class GameEngine {
   onEndingReached: ((endingId: string | null) => void) | null = null;
   /** 养成事件触发（由「set 后自动判定」触发）；UI 据此弹瞬时提示 */
   onEventFired: ((id: string, toast?: string) => void) | null = null;
+  /** 收集到新线索（clue 指令执行时）；UI 据此刷新「线索」按钮角标 */
+  onClueAdded: ((clue: ClueDef) => void) | null = null;
+  /** 推理成功（tryDeduce 命中）；UI 据此弹瞬时提示 */
+  onDeductionFired: ((id: string, toast?: string) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -152,15 +163,23 @@ export class GameEngine {
       }
     });
 
-    // 预扫描 relation/event 声明（读档安全：不依赖执行顺序，
-    // 即使从存档恢复跳过了脚本前段的声明指令，档案与事件表也已就位）。
+    // 预扫描 relation/event/clue/deduce 声明（读档安全：不依赖执行顺序，
+    // 即使从存档恢复跳过了脚本前段的声明指令，档案/事件/线索/推理表也已就位）。
     this.relations.clear();
     this.eventList = [];
+    this.clueDefs.clear();
+    this.ownedClues.clear();
+    this.deductionList = [];
     for (const cmd of this.commands) {
       if (cmd.type === 'relation' && 'characters' in cmd) {
         for (const c of cmd.characters) this.relations.set(c.id, c);
       } else if (cmd.type === 'event' && 'list' in cmd) {
         for (const e of cmd.list) this.eventList.push(e);
+      } else if (cmd.type === 'clue' && 'id' in cmd) {
+        // 仅登记 def（名称/描述/图标）；是否「已拥有」由执行时的 clue 指令标记。
+        this.clueDefs.set(cmd.id, { id: cmd.id, name: cmd.name, desc: cmd.desc, icon: cmd.icon });
+      } else if (cmd.type === 'deduce' && 'list' in cmd) {
+        for (const d of cmd.list) this.deductionList.push(d);
       }
     }
 
@@ -250,6 +269,9 @@ export class GameEngine {
     this.commandIndex = state.currentCommandIndex;
     this.variables.import(state.variables, state.flags);
     this.backlog = state.backlog;
+
+    // 恢复已收集线索（def 已在 init 预扫描登记，此处仅重建「已拥有」集合）
+    this.ownedClues = new Set(state.clues ?? []);
 
     // 关键修复：退出标题屏，否则主循环会一直渲染标题页，读档无效
     this.onTitleScreen = false;
@@ -629,6 +651,24 @@ export class GameEngine {
         this.executeNext();
         break;
 
+      case 'clue': {
+        // 线索收集：标记为已拥有（def 已在 init 预扫描登记）；通知 UI 刷新角标。
+        if (!this.ownedClues.has(cmd.id)) {
+          this.ownedClues.add(cmd.id);
+          const def = this.clueDefs.get(cmd.id);
+          if (def) this.onClueAdded?.(def);
+        }
+        this.commandIndex++;
+        this.executeNext();
+        break;
+      }
+
+      case 'deduce':
+        // 推理规则声明：init 时已预扫描登记，运行时不再执行任何操作，仅推进指针。
+        this.commandIndex++;
+        this.executeNext();
+        break;
+
       case 'wait': {
         this.waitTimer = cmd.duration;
         this.commandIndex++;
@@ -970,6 +1010,7 @@ export class GameEngine {
       bgmId: this.audio?.getCurrentBgmId() ?? null,
       variables: this.variables.export(),
       flags: this.variables.exportFlags(),
+      clues: Array.from(this.ownedClues),
       backlog: this.backlog,
       scene: {
         bg: this.getCurrentBgId(),
@@ -1022,6 +1063,56 @@ export class GameEngine {
     return Array.from(this.relations.values());
   }
 
+  /** 获取已收集线索（含完整 def，供 UI 线索笔记本渲染） */
+  getClues(): ClueDef[] {
+    return Array.from(this.ownedClues)
+      .map(id => this.clueDefs.get(id))
+      .filter((c): c is ClueDef => !!c);
+  }
+
+  /** 获取全部推理规则（供 UI 推理板判断可选线索 / 提示用） */
+  getDeductions(): DeductionDef[] {
+    return this.deductionList;
+  }
+
+  /**
+   * 推理判定：玩家在推理板选中 selectedIds 线索后调用。
+   * 遍历推理表，命中「requires 内每条线索都已拥有且被选中」的首条规则：
+   *  - 应用 sets（写入变量）
+   *  - once 则置守门 flag.deduce.<id>
+   *  - 回调 onDeductionFired（UI 弹提示）
+   *  - 若含 jump，跳转该 label（关闭面板后由 UI 调用，故此处直接跳转执行）
+   * @returns 命中的推理规则（null 表示无匹配，UI 应提示「线索不足」）
+   */
+  tryDeduce(selectedIds: string[]): DeductionDef | null {
+    const selected = new Set(selectedIds);
+    for (const d of this.deductionList) {
+      if (d.once && this.variables.hasFlag('deduce.' + d.id)) continue;
+      const ok = d.requires.every(req => this.ownedClues.has(req) && selected.has(req));
+      if (!ok) continue;
+      // 命中
+      if (d.sets) {
+        for (const s of d.sets) this.variables.set(s.variable, s.value, s.op);
+      }
+      if (d.once) this.variables.setFlag('deduce.' + d.id);
+      this.onDeductionFired?.(d.id, d.toast);
+      if (d.jump) {
+        const idx = this.labels.get(d.jump);
+        if (idx !== undefined) {
+          // 若当前正停在选项面板，先收起它，避免跳转后旧选项残留挡住新剧情
+          if (this.waitingForChoice) {
+            this.waitingForChoice = false;
+            this.onChoicesHide?.();
+          }
+          this.commandIndex = idx;
+          this.executeNext();
+        }
+      }
+      return d;
+    }
+    return null;
+  }
+
   /** 暂停 */
   pause(): void {
     this.running = false;
@@ -1049,6 +1140,8 @@ export class GameEngine {
     // 清理新增回调与首页动效状态（防止跨故事残留）
     this.onEndingReached = null;
     this.pendingEndingId = null;
+    this.onClueAdded = null;
+    this.onDeductionFired = null;
     this.titleParticles = [];
     this.titleLastTs = 0;
     this.titleAmbient = 'none';

@@ -52,6 +52,8 @@ export type ScriptCommand =
   | { type: 'item'; id: string }            // 弹出物件放大图（证物/信件/照片，DOM 覆盖层，点击关闭）
   | { type: 'relation'; characters: RelationDef[] }  // 角色养成档案声明（init 预扫描）
   | { type: 'event'; list: EventDef[] }            // 养成事件监视表声明（init 预扫描）
+  | { type: 'clue'; id: string; name: string; desc: string; icon?: string }  // 线索声明+收集（init 预扫描 def；执行时标记为已拥有）
+  | { type: 'deduce'; list: DeductionDef[] }       // 推理规则声明（init 预扫描）
   | { type: 'end' };
 
 export interface ChoiceItem {
@@ -79,6 +81,25 @@ export interface EventDef {
   jump: string;        // 命中后跳转的 label
   once?: boolean;      // 是否只触发一次（用 flag.event.<id> 守门，读档安全）
   toast?: string;      // 触发时的瞬时提示文案（可选）
+}
+
+/** 线索/证物定义（由 `clue` 指令声明并收集；init 预扫描 def，执行时标记为已拥有） */
+export interface ClueDef {
+  id: string;          // 线索唯一 id
+  name: string;        // 显示名（如「锈蚀的钥匙」）
+  desc: string;        // 描述 / 揭示的含义
+  icon?: string;       // 可选缩略图地址（建议放 public/images/items/…）
+}
+
+/** 推理规则定义（由 `deduce` 指令声明，init 预扫描；玩家在推理板选择线索后由引擎判定） */
+export interface DeductionDef {
+  id: string;          // 推理唯一 id
+  name?: string;       // 可选标题（如「三者拼合」）
+  requires: string[];  // 必须「已拥有且被选中」的线索 id 集合（超集亦可命中）
+  sets?: { variable: string; value: number | string | boolean; op?: '=' | '+=' | '-=' }[]; // 命中后写入变量
+  jump?: string;       // 命中后跳转的 label（可选，用于解锁路线/结局）
+  toast?: string;      // 推理成功的瞬时提示
+  once?: boolean;      // 仅触发一次（flag.deduce.<id> 守门，读档安全）
 }
 
 /** 结局收集条目（由故事在 StoryDef.endings 中声明） */
@@ -149,6 +170,7 @@ export interface SerializedGameState {
   bgmId: string | null;
   variables: Record<string, number | string | boolean>;
   flags: string[];
+  clues: string[];     // 已收集线索 id 列表（读档恢复用）
   backlog: BacklogEntry[];
   scene: {
     bg: string | null;

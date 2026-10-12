@@ -52,6 +52,7 @@
         <button id="btn-settings" title="设置">设置</button>
         <button id="btn-backlog" title="历史">历史</button>
         <button id="btn-relations" title="角色关系">关系</button>
+        <button id="btn-clues" title="线索笔记本">线索<span id="clues-badge" class="badge hidden">0</span></button>
       </div>
       <!-- 存档面板 -->
       <div id="save-load-panel" class="hidden">
@@ -150,7 +151,23 @@
         </div>
         <div id="relations-content" class="relations-content"></div>
       </div>
-      <!-- 养成事件触发提示（阶段1） -->
+      <!-- 线索笔记本 + 推理板（阶段2） -->
+      <div id="clues-panel" class="hidden">
+        <div class="panel-header">
+          <h2>线索笔记本</h2>
+          <button id="btn-clues-close">✕</button>
+        </div>
+        <div id="clues-content" class="clues-content"></div>
+        <div class="clues-footer" id="clues-footer-read">
+          <button id="btn-clues-reason">进入推理</button>
+        </div>
+        <div class="clues-footer hidden" id="clues-footer-reason">
+          <button id="btn-clues-deduce" class="primary">推理</button>
+          <button id="btn-clues-reason-exit">退出推理</button>
+        </div>
+        <div id="clues-hint" class="clues-hint hidden"></div>
+      </div>
+      <!-- 养成事件 / 推理触发提示（阶段1/2 共用） -->
       <div id="event-toast" class="hidden"></div>
     </div>
   </div>

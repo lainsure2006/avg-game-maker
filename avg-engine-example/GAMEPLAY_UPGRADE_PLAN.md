@@ -63,7 +63,7 @@
 
 ---
 
-## 4. 阶段 1 · 人物养成（当前进行）
+## 4. 阶段 1 · 人物养成（✅ 已完成 · 实测通过）
 
 ### 4.1 新增数据结构（types.ts）
 ```ts
@@ -119,9 +119,65 @@ interface EventDef {
 
 ---
 
-## 5. 后续阶段（占位，逐阶段展开 SPEC）
+## 5. 阶段 2 · 线索笔记本 + 推理板（✅ 已完成 · 实测路径见下）
 
-- **阶段2 线索笔记本/推理板**：`notebook` 指令收集证物；`reason` 指令校验线索组合解锁路线。
+### 5.1 新增数据结构（types.ts）
+```ts
+interface ClueDef {
+  id: string;          // 线索唯一 id
+  name: string;        // 显示名（如「锈蚀的铜钥匙」）
+  desc: string;        // 描述 / 揭示含义
+  icon?: string;       // 可选缩略图
+}
+interface DeductionDef {
+  id: string;          // 推理唯一 id
+  name?: string;       // 可选标题
+  requires: string[];  // 必须「已拥有且被选中」的线索 id（超集亦可命中）
+  sets?: { variable; value; op? }[];  // 命中后写入变量
+  jump?: string;       // 命中后跳转 label（解锁路线/结局）
+  toast?: string;      // 推理成功瞬时提示
+  once?: boolean;      // 仅触发一次（flag.deduce.<id> 守门）
+}
+```
+
+### 5.2 新增脚本指令
+```jsonc
+// 声明线索（init 预扫描 def；执行时再标记「已拥有」，触发 onClueAdded 刷新角标）
+{ "type": "clue", "id": "c_key", "name": "锈蚀的铜钥匙",
+  "desc": "柄上刻着编号 7-13，对应老式病历柜。" }
+
+// 推理规则（init 预扫描）；玩家在推理板选中线索后引擎 tryDeduce 判定
+{ "type": "deduce", "list": [
+  { "id": "d_truth", "requires": ["c_key","c_note"],
+    "sets": [{ "variable":"flag_deduced","value":true,"op":"=" }],
+    "jump": "deduce_success", "toast": "推理成立：7-13 号柜藏着真相", "once": true }
+] }
+```
+
+### 5.3 引擎改动（game-engine.ts）
+- 新增 `clueDefs: Map`（def，init 预扫描）、`ownedClues: Set`（执行标记）、`deductionList`（init 预扫描）。
+- `clue` 执行：标记已拥有 + 回调 `onClueAdded`；`deduce` 为声明，no-op。
+- `tryDeduce(selectedIds)`：遍历 `deductionList`，命中「requires 全部已拥有且被选中」首条 → 应用 `sets`、`once` 守门、`onDeductionFired` 回调、`jump`（跳转前若停在选项则先收起选项面板）。
+- `getClues()` 供 UI 渲染；`SerializedGameState` 增加 `clues: string[]` 并纳入 `getSaveState`/`restoreFromSave`（读档安全）。
+- 回调：`onClueAdded?`、`onDeductionFired?`。
+
+### 5.4 UI 改动
+- 顶栏「线索」按钮 + `#clues-badge` 角标（已收集数量）。
+- `#clues-panel`：阅读模式列线索卡（名+描述+图标）；点「进入推理」切推理模式——线索卡变可点选，底部出现「推理 / 退出推理」。
+- 选线索 → 点「推理」→ `engine.tryDeduce`，命中则关面板 + toast；未命中显示「线索不足」提示。
+- 复用阶段1的 `#event-toast` 作推理成功提示。
+
+### 5.5 验收判据
+- [x] 执行 `clue` 后顶栏角标 +1，关系/线索面板可查。
+- [x] 「进入推理」选中「钥匙+匿名信」→ 推理命中 → 跳 `deduce_success` + toast。
+- [x] 选错组合 → 提示「线索不足」，可重选；`once` 推理不重复触发。
+- [x] 读档后已收集线索仍在（序列化保证）。
+- [x] 示例 story8「线索推理示例」从标题屏可进入完整演示。
+
+---
+
+## 6. 后续阶段（占位，逐阶段展开 SPEC）
+
 - **阶段3 探索模式**：`explore` 加载超宽全景 + 平移；`hotspot` 定义可点击热区（坐标用全景比例），命中弹 `item`/置 flag。
 - **阶段4 场景自选 hub**：`hub` 地图层（节点+requires+locked_msg）；`time` 时间阶段 + `action_points` 行动点。
 - **阶段5 动画特效**：宽图视差分层、电影宽银幕（16:9 黑边+缓推）、线索拾取闪光、立绘入场弹跳、眨眼/微表情。

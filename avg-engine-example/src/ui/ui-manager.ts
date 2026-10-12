@@ -4,7 +4,7 @@
  */
 
 import type { GameEngine } from '../engine/game-engine';
-import type { ChoiceItem, BacklogEntry, GameSettings, TitleScreenConfig, TitleScreenAction, EndingDef } from '../engine/types';
+import type { ChoiceItem, BacklogEntry, GameSettings, TitleScreenConfig, TitleScreenAction, EndingDef, ClueDef } from '../engine/types';
 import type { StoryConfig } from '../game/index';
 import { switchStory } from '../game/index';
 
@@ -37,6 +37,22 @@ export class UIManager {
   private relationsContent: HTMLElement;
   private btnRelations: HTMLElement;
   private btnRelationsClose: HTMLElement;
+
+  // 线索笔记本 + 推理板（阶段2：人物养成/探索）
+  private cluesPanel: HTMLElement;
+  private cluesContent: HTMLElement;
+  private btnClues: HTMLElement;
+  private btnCluesClose: HTMLElement;
+  private btnCluesReason: HTMLElement;
+  private btnCluesDeduce: HTMLElement;
+  private btnCluesReasonExit: HTMLElement;
+  private cluesBadge: HTMLElement;
+  private cluesFooterRead: HTMLElement;
+  private cluesFooterReason: HTMLElement;
+  private cluesHint: HTMLElement;
+  private cluesMode: 'read' | 'reason' = 'read';
+  private cluesSelected: Set<string> = new Set();
+
   private eventToast: HTMLElement;
   private eventToastTimer: number = 0;
 
@@ -110,6 +126,20 @@ export class UIManager {
     this.relationsContent = document.getElementById('relations-content')!;
     this.btnRelations = document.getElementById('btn-relations')!;
     this.btnRelationsClose = document.getElementById('btn-relations-close')!;
+
+    // 线索笔记本 + 推理板（阶段2）
+    this.cluesPanel = document.getElementById('clues-panel')!;
+    this.cluesContent = document.getElementById('clues-content')!;
+    this.btnClues = document.getElementById('btn-clues')!;
+    this.btnCluesClose = document.getElementById('btn-clues-close')!;
+    this.btnCluesReason = document.getElementById('btn-clues-reason')!;
+    this.btnCluesDeduce = document.getElementById('btn-clues-deduce')!;
+    this.btnCluesReasonExit = document.getElementById('btn-clues-reason-exit')!;
+    this.cluesBadge = document.getElementById('clues-badge')!;
+    this.cluesFooterRead = document.getElementById('clues-footer-read')!;
+    this.cluesFooterReason = document.getElementById('clues-footer-reason')!;
+    this.cluesHint = document.getElementById('clues-hint')!;
+
     this.eventToast = document.getElementById('event-toast')!;
 
     // 首页元素
@@ -179,6 +209,17 @@ export class UIManager {
     this.engine.onEventFired = (id, toast) => {
       this.showEventToast(toast ?? `事件：${id}`);
       if (!this.relationsPanel.classList.contains('hidden')) this.renderRelations();
+    };
+
+    // 收集到新线索 → 刷新「线索」按钮角标（若笔记本正打开则同步刷新列表）
+    this.engine.onClueAdded = (clue: ClueDef) => {
+      this.updateCluesBadge();
+      if (!this.cluesPanel.classList.contains('hidden')) this.renderClues();
+    };
+
+    // 推理成功 → 瞬时提示（与养成事件共用 toast）
+    this.engine.onDeductionFired = (id, toast) => {
+      this.showEventToast(toast ?? `推理：${id}`);
     };
 
     // 首页状态变化
@@ -392,6 +433,32 @@ export class UIManager {
       this.hideRelations();
     }, { signal: sig });
 
+    // 线索笔记本（阶段2）
+    this.btnClues.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleClues();
+    }, { signal: sig });
+
+    this.btnCluesClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.hideClues();
+    }, { signal: sig });
+
+    this.btnCluesReason.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.enterReasonMode();
+    }, { signal: sig });
+
+    this.btnCluesReasonExit.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.exitReasonMode();
+    }, { signal: sig });
+
+    this.btnCluesDeduce.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.doDeduce();
+    }, { signal: sig });
+
     // 故事选择关闭
     document.getElementById('btn-story-select-close')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -404,7 +471,8 @@ export class UIManager {
           this.settingsPanel.classList.contains('hidden') &&
           this.backlogPanel.classList.contains('hidden') &&
           this.storySelectPanel.classList.contains('hidden') &&
-          this.relationsPanel.classList.contains('hidden')) {
+          this.relationsPanel.classList.contains('hidden') &&
+          this.cluesPanel.classList.contains('hidden')) {
         switch (e.key) {
           case ' ':
           case 'Enter':
@@ -421,6 +489,7 @@ export class UIManager {
         this.hideBacklog();
         this.hideStorySelect();
         this.hideRelations();
+        this.hideClues();
       }
     }, { signal: sig });
   }
@@ -1026,6 +1095,122 @@ export class UIManager {
     }
   }
 
+  // ========== 线索笔记本 + 推理板（阶段2） ==========
+  private toggleClues(): void {
+    if (this.cluesPanel.classList.contains('hidden')) this.showClues();
+    else this.hideClues();
+  }
+
+  private showClues(): void {
+    this.cluesMode = 'read';
+    this.cluesSelected.clear();
+    this.updateCluesBadge();
+    this.renderClues();
+    this.cluesPanel.classList.remove('hidden');
+  }
+
+  private hideClues(): void {
+    this.cluesPanel.classList.add('hidden');
+  }
+
+  /** 渲染线索列表（read 模式=只读卡片；reason 模式=可点选卡片） */
+  private renderClues(): void {
+    this.cluesContent.innerHTML = '';
+    const clues = this.engine.getClues();
+
+    if (clues.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'clue-empty';
+      empty.textContent = '尚未收集到任何线索。继续探索吧。';
+      this.cluesContent.appendChild(empty);
+    } else {
+      for (const c of clues) {
+        const card = document.createElement('div');
+        card.className = 'clue-card' + (this.cluesMode === 'reason' ? ' selectable' : '');
+        const selected = this.cluesMode === 'reason' && this.cluesSelected.has(c.id);
+        if (selected) card.classList.add('selected');
+
+        const iconHtml = c.icon
+          ? `<img class="clue-icon" src="${this.escapeHtml(c.icon)}" alt="" />`
+          : `<div class="clue-icon"></div>`;
+        const checkHtml = this.cluesMode === 'reason'
+          ? `<div class="clue-check">${selected ? '✓' : ''}</div>`
+          : '';
+        card.innerHTML = `${checkHtml}${iconHtml}<div class="clue-body"><div class="clue-name">${this.escapeHtml(c.name)}</div><div class="clue-desc">${this.escapeHtml(c.desc)}</div></div>`;
+
+        if (this.cluesMode === 'reason') {
+          card.addEventListener('click', () => this.toggleClueSelect(c.id));
+        }
+        this.cluesContent.appendChild(card);
+      }
+    }
+
+    // 底部操作栏随模式切换
+    if (this.cluesMode === 'read') {
+      this.cluesFooterRead.classList.remove('hidden');
+      this.cluesFooterReason.classList.add('hidden');
+    } else {
+      this.cluesFooterRead.classList.add('hidden');
+      this.cluesFooterReason.classList.remove('hidden');
+    }
+    this.cluesHint.classList.add('hidden');
+  }
+
+  private enterReasonMode(): void {
+    this.cluesMode = 'reason';
+    this.cluesSelected.clear();
+    this.renderClues();
+  }
+
+  private exitReasonMode(): void {
+    this.cluesMode = 'read';
+    this.cluesSelected.clear();
+    this.renderClues();
+  }
+
+  private toggleClueSelect(id: string): void {
+    if (this.cluesSelected.has(id)) this.cluesSelected.delete(id);
+    else this.cluesSelected.add(id);
+    this.renderClues();
+  }
+
+  private doDeduce(): void {
+    if (this.cluesSelected.size === 0) {
+      this.showCluesHint('请先选择若干线索，再点「推理」。');
+      return;
+    }
+    const fired = this.engine.tryDeduce(Array.from(this.cluesSelected));
+    if (fired) {
+      // 推理成功：关闭面板；瞬时提示由引擎 onDeductionFired 回调弹
+      this.hideClues();
+    } else {
+      this.showCluesHint('线索不足以推出结论，再想想组合方式。');
+    }
+  }
+
+  private showCluesHint(text: string): void {
+    this.cluesHint.textContent = text;
+    this.cluesHint.classList.remove('hidden');
+  }
+
+  /** 刷新顶栏「线索」角标（已收集线索数量） */
+  private updateCluesBadge(): void {
+    const n = this.engine.getClues().length;
+    if (n > 0) {
+      this.cluesBadge.textContent = String(n);
+      this.cluesBadge.classList.remove('hidden');
+    } else {
+      this.cluesBadge.classList.add('hidden');
+    }
+  }
+
+  /** 防止线索文本里的 < > & 破坏 DOM（与渲染安全一致） */
+  private escapeHtml(s: string): string {
+    return s.replace(/[&<>"']/g, ch => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[ch] ?? ch));
+  }
+
   /** 养成事件触发瞬时提示（2.5s 后自动淡出） */
   private showEventToast(text: string): void {
     this.eventToast.innerHTML = `<span class="toast-badge">🔔</span><span>${text}</span>`;
@@ -1083,5 +1268,7 @@ export class UIManager {
     this.engine.onTitleAction = null;
     this.engine.onEndingReached = null;
     this.engine.onEventFired = null;
+    this.engine.onClueAdded = null;
+    this.engine.onDeductionFired = null;
   }
 }
