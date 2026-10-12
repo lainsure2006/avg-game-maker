@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>局部重绘蒙版手绘工具 · 缄默回廊</title>
+<style>
+  :root { --bg:#15171c; --panel:#1e2128; --line:#333842; --txt:#e6e8ee; --acc:#6ea8fe; --warn:#ffb454; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+         background:var(--bg); color:var(--txt); padding:16px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .sub { color:#9aa3b2; font-size:13px; margin-bottom:14px; }
+  .layout { display:flex; gap:16px; flex-wrap:wrap; }
+  .left { flex:1 1 560px; min-width:320px; }
+  .right { flex:0 0 280px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:14px; }
+  .panel h2 { font-size:14px; margin:0 0 10px; color:var(--acc); }
+  #stage { position:relative; width:100%; background:#0c0d10; border:1px solid var(--line); border-radius:8px;
+           overflow:hidden; display:flex; align-items:center; justify-content:center; min-height:320px; }
+  canvas { display:block; max-width:100%; touch-action:none; }
+  .row { display:flex; align-items:center; gap:10px; margin:8px 0; flex-wrap:wrap; }
+  label { font-size:12px; color:#9aa3b2; }
+  input[type=range] { width:140px; }
+  button { background:#2a2f3a; color:var(--txt); border:1px solid var(--line); border-radius:7px;
+           padding:8px 12px; cursor:pointer; font-size:13px; }
+  button:hover { background:#343b48; }
+  button.primary { background:var(--acc); color:#0c0d10; border-color:var(--acc); font-weight:600; }
+  button.danger { background:#3a2424; border-color:#5a2e2e; color:#ffb4b4; }
+  textarea { width:100%; height:80px; background:#0c0d10; color:var(--txt); border:1px solid var(--line);
+             border-radius:7px; padding:8px; font-size:13px; resize:vertical; }
+  .hint { font-size:12px; color:#9aa3b2; line-height:1.5; }
+  .kv { font-size:12px; color:#9aa3b2; word-break:break-all; }
+  .kv b { color:var(--txt); }
+  .tag { display:inline-block; background:#222732; border:1px solid var(--line); border-radius:5px;
+         padding:2px 7px; font-size:11px; color:#9aa3b2; margin:2px 4px 2px 0; }
+  input[type=file] { font-size:12px; color:#9aa3b2; }
+</style>
+</head>
+<body>
+  <h1>局部重绘蒙版手绘工具</h1>
+  <div class="sub">给 AI 出图做局部重绘（inpaint）：你涂哪块、AI 就只重画哪块。蒙版白=要重绘，黑=不动。导出 PNG 与原图同分辨率。</div>
+
+  <div class="layout">
+    <div class="left">
+      <div class="panel">
+        <div id="stage">
+          <canvas id="disp"></canvas>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <input type="file" id="file" accept="image/png,image/jpeg,image/webp">
+          <span class="tag">拖拽图片到上方亦可</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel">
+        <h2>画笔</h2>
+        <div class="row">
+          <label>大小 <span id="bsz">40</span>px</label>
+          <input type="range" id="brush" min="4" max="300" value="40">
+        </div>
+        <div class="row">
+          <label>硬度</label>
+          <input type="range" id="hard" min="0" max="100" value="100">
+          <span class="hint">100=硬边，低=柔边（羽化）</span>
+        </div>
+        <div class="row">
+          <button id="erase">橡皮擦：关</button>
+          <button id="clear">清空蒙版</button>
+          <button id="undo">撤销</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>导出</h2>
+        <div class="row">
+          <button id="dlmask" class="primary">下载蒙版 PNG</button>
+        </div>
+        <div class="kv">建议保存名：<b id="suggest">（先加载图片）</b></div>
+        <div class="row" style="margin-top:8px;">
+          <button id="dljson">下载任务单 JSON</button>
+        </div>
+        <div class="hint">任务单含：原图路径、蒙版文件名、inpaint 指令。发给我即可让我跑云端重绘。</div>
+      </div>
+
+      <div class="panel">
+        <h2>inpaint 指令（给 AI 看）</h2>
+        <textarea id="prompt" placeholder="例如：把右手腕上的银镯去掉，露出自然赤裸的手腕皮肤，保持肤色与光照一致"></textarea>
+      </div>
+
+      <div class="panel">
+        <h2>状态</h2>
+        <div class="kv" id="status">未加载图片</div>
+        <div class="kv" id="dims"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const disp = document.getElementById('disp');
+  const dctx = disp.getContext('2d');
+  const fileInput = document.getElementById('file');
+  const stage = document.getElementById('stage');
+  const brushEl = document.getElementById('brush');
+  const hardEl = document.getElementById('hard');
+  const bsz = document.getElementById('bsz');
+  const eraseBtn = document.getElementById('erase');
+  const clearBtn = document.getElementById('clear');
+  const undoBtn = document.getElementById('undo');
+  const dlmask = document.getElementById('dlmask');
+  const dljson = document.getElementById('dljson');
+  const promptEl = document.getElementById('prompt');
+  const suggest = document.getElementById('suggest');
+  const statusEl = document.getElementById('status');
+  const dimsEl = document.getElementById('dims');
+
+  let img = null;            // 原图 Image
+  let mask = null;           // 全分辨率蒙版 canvas
+  let mctx = null;
+  let dispScale = 1;         // disp.width / naturalW
+  let drawing = false;
+  let lastPt = null;
+  let erasing = false;
+  let undoStack = [];
+  let maskFileName = 'mask.png';
+
+  function fitDisp() {
+    const maxW = Math.min(stage.clientWidth - 2, 1100);
+    const maxH = 760;
+    let w = img.naturalWidth, h = img.naturalHeight;
+    const r = Math.min(maxW / w, maxH / h, 1);
+    disp.width = Math.round(w * r);
+    disp.height = Math.round(h * r);
+    dispScale = disp.width / w;
+    dctx.clearRect(0, 0, disp.width, disp.height);
+    dctx.drawImage(img, 0, 0, disp.width, disp.height);
+  }
+
+  function ensureMask() {
+    if (mask) return;
+    mask = document.createElement('canvas');
+    mask.width = img.naturalWidth;
+    mask.height = img.naturalHeight;
+    mctx = mask.getContext('2d');
+    mctx.fillStyle = '#000';
+    mctx.fillRect(0, 0, mask.width, mask.height);
+  }
+
+  function snapshot() {
+    if (undoStack.length >= 25) undoStack.shift();
+    undoStack.push(mctx.getImageData(0, 0, mask.width, mask.height));
+  }
+
+  function brushRadiusMask() {
+    return Math.max(1, (parseInt(brushEl.value, 10)) / dispScale);
+  }
+
+  function paintAt(x, y) {
+    const rMask = brushRadiusMask();
+    const hard = parseInt(hardEl.value, 10) / 100;
+    const color = erasing ? 'rgba(0,0,0,1)' : 'rgba(255,255,255,1)';
+    // 全分辨率蒙版
+    mctx.save();
+    mctx.globalCompositeOperation = erasing ? 'destination-out' : 'source-over';
+    if (hard >= 1) {
+      mctx.fillStyle = color;
+      mctx.beginPath();
+      mctx.arc(x / dispScale, y / dispScale, rMask, 0, Math.PI * 2);
+      mctx.fill();
+    } else {
+      const g = mctx.createRadialGradient(x/dispScale, y/dispScale, rMask*hard,
+                                          x/dispScale, y/dispScale, rMask);
+      if (erasing) {
+        g.addColorStop(0, 'rgba(0,0,0,1)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+      } else {
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+      }
+      mctx.fillStyle = g;
+      mctx.beginPath();
+      mctx.arc(x / dispScale, y / dispScale, rMask, 0, Math.PI * 2);
+      mctx.fill();
+    }
+    mctx.restore();
+    drawOverlay();
+  }
+
+  function drawOverlay() {
+    // 在显示画布上叠加红色半透明，直观看涂了哪
+    dctx.clearRect(0, 0, disp.width, disp.height);
+    dctx.drawImage(img, 0, 0, disp.width, disp.height);
+    dctx.save();
+    dctx.globalAlpha = 0.45;
+    dctx.drawImage(mask, 0, 0, mask.width, mask.height, 0, 0, disp.width, disp.height);
+    // 用红色 tint：这里直接用 mask 的亮度当 alpha 画红
+    dctx.globalCompositeOperation = 'source-atop';
+    dctx.fillStyle = '#ff4d4d';
+    dctx.globalAlpha = 0.5;
+    dctx.fillRect(0, 0, disp.width, disp.height);
+    dctx.restore();
+  }
+
+  function evtPos(e) {
+    const rect = disp.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    return { x: cx * (disp.width / rect.width), y: cy * (disp.height / rect.height) };
+  }
+
+  function start(e) {
+    if (!img) return;
+    ensureMask();
+    drawing = true;
+    lastPt = evtPos(e);
+    snapshot();
+    paintAt(lastPt.x, lastPt.y);
+    e.preventDefault();
+  }
+  function move(e) {
+    if (!drawing) return;
+    const p = evtPos(e);
+    // 连线，避免快画断点
+    const steps = Math.max(1, Math.floor(Math.hypot(p.x-lastPt.x, p.y-lastPt.y) / 4));
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      paintAt(lastPt.x + (p.x-lastPt.x)*t, lastPt.y + (p.y-lastPt.y)*t);
+    }
+    lastPt = p;
+    e.preventDefault();
+  }
+  function end() { drawing = false; lastPt = null; }
+
+  disp.addEventListener('mousedown', start);
+  disp.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  disp.addEventListener('touchstart', start, {passive:false});
+  disp.addEventListener('touchmove', move, {passive:false});
+  disp.addEventListener('touchend', end);
+
+  function loadFile(f) {
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    const im = new Image();
+    im.onload = () => {
+      img = im;
+      mask = null; mctx = null; undoStack = [];
+      ensureMask();
+      fitDisp();
+      drawOverlay();
+      const stem = f.name.replace(/\.[^.]+$/, '');
+      maskFileName = stem + '_mask.png';
+      suggest.textContent = maskFileName;
+      statusEl.textContent = '已加载：' + f.name;
+      dimsEl.textContent = '原图 ' + im.naturalWidth + '×' + im.naturalHeight +
+                           ' ｜ 蒙版同分辨率';
+    };
+    im.src = url;
+  }
+
+  fileInput.addEventListener('change', e => loadFile(e.target.files[0]));
+  stage.addEventListener('dragover', e => e.preventDefault());
+  stage.addEventListener('drop', e => { e.preventDefault(); loadFile(e.dataTransfer.files[0]); });
+
+  brushEl.addEventListener('input', () => bsz.textContent = brushEl.value);
+  eraseBtn.addEventListener('click', () => {
+    erasing = !erasing;
+    eraseBtn.textContent = '橡皮擦：' + (erasing ? '开' : '关');
+  });
+  clearBtn.addEventListener('click', () => {
+    if (!mctx) return;
+    snapshot();
+    mctx.fillStyle = '#000';
+    mctx.fillRect(0, 0, mask.width, mask.height);
+    drawOverlay();
+  });
+  undoBtn.addEventListener('click', () => {
+    if (!undoStack.length) return;
+    const data = undoStack.pop();
+    mctx.putImageData(data, 0, 0);
+    drawOverlay();
+  });
+
+  dlmask.addEventListener('click', () => {
+    if (!mask) return alert('请先加载图片并涂蒙版');
+    mask.toBlob(b => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = maskFileName;
+      a.click();
+    }, 'image/png');
+  });
+  dljson.addEventListener('click', () => {
+    if (!img) return alert('请先加载图片');
+    const task = {
+      image_file: '(原图本地路径，你出图时所用)',
+      mask_file: maskFileName,
+      prompt: promptEl.value,
+      note: '白=重绘区域，黑=保留。把原图与蒙版放同目录，发我 mask_file 路径即可。'
+    };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(task, null, 2)], {type:'application/json'}));
+    a.download = (maskFileName.replace(/_mask\.png$/,'')) + '_inpaint_task.json';
+    a.click();
+  });
+})();
+</script>
+</body>
+</html>

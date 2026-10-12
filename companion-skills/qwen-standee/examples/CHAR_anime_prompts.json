@@ -1,0 +1,29 @@
+{
+  "_comment": "示例·二次元 anime 模板（虚构角色，复制后改为你自己的角色）。同一 schema，仅画风词改为 anime。注意：二次元角色不能用 ArcFace 验收（insightface 检不出动漫脸），一致性只能目视。",
+  "char_block": "The same petite teenage girl, a shy apprentice mage, large expressive eyes, short twin-tails in a soft pastel lavender, wearing a simplified wizard academy uniform with a long ribbon, cel-shaded clean lineart.",
+  "neg": "realistic photo, photorealistic, 3d render, messy lineart, extra fingers, deformed hands, watermark, text, logo, two people, crowd, dull colors",
+  "sheet": {
+    "w": 2048,
+    "h": 1024,
+    "grid": [4, 1],
+    "cells": ["head", "front", "side90", "back"],
+    "prompt": "A wide horizontal character turnaround reference sheet showing four views of the same anime girl arranged left to right in a single row, each view separated by a thin dark vertical gap, on a plain neutral light grey studio backdrop with soft even lighting. View 1 far left: head and shoulders close-up portrait, front-facing. View 2: front full-body view, standing straight, arms relaxed at her sides. View 3: side full-body view seen from exactly ninety degrees, facing right, full profile. View 4 far right: back full-body view, seen from directly behind. All four views show the identical girl with exactly the same face, hairstyle and clothing; composed neutral expression throughout, Japanese anime illustration, cel shading, clean lineart, soft pastel palette. {char}"
+  },
+  "game": {
+    "w": 768,
+    "h": 1024,
+    "refs": ["front", "head"],
+    "ref_sheet": true,
+    "resolution": 0,
+    "ref_top": 0.55,
+    "char_override": "The same petite apprentice mage with twin-tails in pastel lavender, large expressive eyes, wearing a wizard academy uniform with a long ribbon, cel-shaded.",
+    "shot": "A single girl only, medium shot framing, shown from the top of her head down to mid-thigh, her hips and upper thighs cropped by the lower edge of the frame, the uniform filling the bottom of the frame, lower legs and feet not visible, standing against a plain neutral light grey studio backdrop with soft even lighting, anime illustration.",
+    "neg_extra": "full body, complete figure, feet, shoes, lower legs, knees, long shot, wide shot, entire body visible, head and shoulders closeup, face filling the frame, black rectangle, black block, dark void at the bottom, realistic, 3d",
+    "transparent": false,
+    "shots": {
+      "default": "a shy gentle smile, eyes softened, gaze level at the camera, a faint blush",
+      "determined": "brows set with determination, mouth composed, gaze steady and resolute",
+      "casting": "eyes glowing with gathered magic, one hand raised as if casting a spell, focused expression"
+    }
+  }
+}

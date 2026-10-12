@@ -1,0 +1,29 @@
+{
+  "_comment": "示例·写实 photoreal 模板（虚构角色，复制后改为你自己的角色）。流程：sheet 2:1 一次出 4 视角 → 切格 → 参考(front+head 单格 + 整张设定表)带浅灰背景出半身 → RMBG 抠透明。shots 的 key 对齐引擎 manifest。",
+  "char_block": "The same young East Asian woman in her late twenties, a field reporter with a brisk and observant air, slender build, neat bob haircut, calm intelligent eyes. She wears a practical light trench coat over a simple blouse, neutral tones, not a uniform.",
+  "neg": "tattoo, casual clothing, sportswear, messy hair, clown makeup, shiny greasy skin, cartoon, anime, illustration, 3d render, plastic skin, overexposed, motion blur, extra fingers, extra limbs, deformed hands, watermark, text, logo, two people, crowd, elderly, child",
+  "sheet": {
+    "w": 2048,
+    "h": 1024,
+    "grid": [4, 1],
+    "cells": ["head", "front", "side90", "back"],
+    "prompt": "A wide horizontal character turnaround reference sheet showing four views of the same woman arranged left to right in a single row, each view separated by a thin dark vertical gap, on a plain neutral light grey studio backdrop with soft even lighting. View 1 far left: head and shoulders close-up portrait, front-facing. View 2: front full-body view, standing straight, arms relaxed at her sides. View 3: side full-body view seen from exactly ninety degrees, facing right, full profile. View 4 far right: back full-body view, seen from directly behind. All four views show the identical woman with exactly the same face, hairstyle and clothing; composed neutral expression throughout, lips closed, gaze level. Photorealistic, sharp focus, full-frame DSLR look, visible natural skin texture and fabric weave. {char}"
+  },
+  "game": {
+    "w": 768,
+    "h": 1024,
+    "refs": ["front", "head"],
+    "ref_sheet": true,
+    "resolution": 0,
+    "ref_top": 0.55,
+    "char_override": "The same young East Asian field reporter with a neat bob haircut, calm intelligent eyes, wearing a light trench coat over a simple blouse, neutral tones.",
+    "shot": "A single woman only, medium shot framing, shown from the top of her head down to mid-thigh, her hips and upper thighs cropped by the lower edge of the frame, the trench coat filling the bottom of the frame, lower legs and feet not visible, standing against a plain neutral light grey studio backdrop with soft even lighting.",
+    "neg_extra": "full body, complete figure, feet, shoes, lower legs, knees, long shot, wide shot, entire body visible, head and shoulders closeup, face filling the frame, black rectangle, black block, dark void at the bottom, vignette, elderly, child",
+    "transparent": false,
+    "shots": {
+      "default": "a calm neutral expression, composed and attentive, lips gently closed, gaze level at the camera",
+      "surprised": "eyes widened in sudden surprise, brows raised, lips parted slightly, a caught-off-guard look",
+      "serious": "a grave and focused expression, brows faintly drawn, mouth composed, gaze steady"
+    }
+  }
+}

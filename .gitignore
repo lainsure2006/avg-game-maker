@@ -1,6 +1,11 @@
 # 根目录零散日志（忽略）
 extract_log.txt
 
-# 配套 companion-skills（下版待补发 CNB，本期暂不入库；防 git add -A 误带；下版发时删除下方 2 行）
-companion-skills/krea2-local-inpaint/
-companion-skills/sprite-matte-local/
+# Python 编译缓存（不入库）
+**/__pycache__/
+*.pyc
+
+# 防御：本地凭证 / 密钥绝不入库（autodl 等云端凭证、.creds 目录）
+**/autodl_creds.json
+**/.creds/
+**/*.creds.json

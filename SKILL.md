@@ -30,6 +30,8 @@ Before Step 5, **confirm HOW images are produced**. This skill's documented pipe
 against **CloudStudio ComfyUI via local bridge**, but the method is NOT fixed — pick one at
 kickoff and adapt.
 
+**推荐方案（2026-10 实践结论）**：当前 **Qwen-Image-2.1（方案 D / companion `qwen-standee`）** 实测最稳定、面部/身份一致性最好，作为**首选推荐**；但各方案互不影响，用户按自身云端算力、模型获取难度与画风需求任选——本 skill 把每套方法都文档化，开工前确认用哪套即可。
+
 **Two rules hold regardless of scheme**:
 1. **S0 first (G1 §2.5)** — style definition + **model-selection experiment** + frozen Style Block,
    before any character art. *The pipeline is genre-agnostic; the style is not.* Never carry a previous
@@ -41,9 +43,12 @@ kickoff and adapt.
 | **A. CloudStudio ComfyUI** (this project's default) | Local bridge `127.0.0.1:8188` → CloudStudio. Pipeline scripts `scripts/comfy_pipeline.py` (bg) + `gen_l0_onepass.py` (L0 cards) drive z-image-turbo. | Cloud preview port (e.g. 9000) ≠ real ComfyUI port (**8188**); `/history/{pid}` single-id returns empty → full `/history` scan; install nodes via CloudStudio terminal (`git clone` into `custom_nodes/`, restart via console, not `kill`). |
 | **B. Local ComfyUI** | User runs ComfyUI on `localhost:8188` (or other). Same workflow JSON + prompts; bridge URL = `http://localhost:8188`. | No cloud gateway quirks. Must have z-image-turbo model (+ optional controlnet) locally. |
 | **C. Prompt-only (manual)** | WorkBuddy delivers prompt templates (G1 §3) + negatives; user generates manually in any tool (SD webui / Midjourney / 即梦 / by hand). | No ComfyUI/API. WorkBuddy still owns S0 style/model design, prompt design, consistency standard, and the S0→L0 order. |
+| **D. AutoDL qwen-image 2.1（★推荐/最稳定）(companion `qwen-standee`)** | autodl 实例(RTX 3090) + ComfyUI + qwen-image 2.1 int8。设定表 2:1 一次出 4 视角 → 切格 → 半身参考(front+head 单格+整张设定表)出图 → RMBG-2.0 抠透明 → ArcFace/透明占比数字验收。 | **★ 当前最稳定、身份一致性最好，作为首选推荐方案**；云端端口映射 6006(ComfyUI 实际 8188)；本地用 paramiko 编排(`autodl_bridge.py`)；不直出 alpha；步数≥24；参考图勿砍；二次元角色不能用 ArcFace（无 insightface 脸）。详见 `companion-skills/qwen-standee/SKILL.md`。 |
 
 > Found a new scheme? Add it to this table so future runs start by confirming the scheme instead
 > of assuming CloudStudio.
+
+> **当前推荐**：若无特别偏好，优先选方案 D（qwen-standee）；其余方案互不影响，用户自行取舍。
 
 ---
 

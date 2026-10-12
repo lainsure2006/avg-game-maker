@@ -19,9 +19,13 @@ avg-game-maker/
 │   ├── engine-conventions.md         # 引擎坑与约定
 │   └── engine-asset-catalog.md
 ├── scripts/                # 21 个通用 Python 工具（见下，已脱敏泛化）
-├── companion-skills/       # 3 个出图配套 skill（已脱敏，本机路径→占位符）
+├── companion-skills/       # 7 个出图配套 skill（已脱敏，本机路径→占位符）
+│   ├── qwen-standee/SKILL.md         # 【★推荐 / 当前最稳定】AutoDL + Qwen-Image-2.1 写实立绘/设定表
 │   ├── krea2-persona-sheet/SKILL.md  # 人物资产参考图 / 角色设定表（Krea2）
 │   ├── krea2-scene-sheet/SKILL.md    # 同一场景多角度参考图
+│   ├── krea2-local-inpaint/SKILL.md  # Krea2 出图后局部重绘（inpaint）
+│   ├── sprite-matte-local/SKILL.md   # 本地 rembg 抠图 → 引擎透明 sprite
+│   ├── zimage-turbo-anime/SKILL.md   # z-image-turbo 动漫风出图经验
 │   └── comfy-cloud-mcp/SKILL.md      # 本地 bridge 调用云端 ComfyUI
 ├── workflows/              # 出图工作流（本地 JSON + 提交脚本，非云端）
 │   ├── comfyui-api-A10.json          # z-image-turbo 文生图（story3 动漫少女）
@@ -56,12 +60,16 @@ avg-game-maker/
 
 ## 依赖的配套 Skill（已随包提供，无需另装）
 
-`avg-game-maker` 在「出图」环节会指向以下独立 skill，本包已将它们放在 `companion-skills/`（已脱敏）：
+`avg-game-maker` 在「出图」环节会指向以下独立 skill，本包已将它们放在 `companion-skills/`（已脱敏）。**当前推荐 `qwen-standee`（Qwen-Image-2.1）为最稳定方案；其余方案互不影响，用户按自身云端算力、模型获取与画风需求任选。**
 
 | Skill | 用途 | 包内路径 |
 |---|---|---|
+| `qwen-standee` | **【★推荐 / 当前最稳定】** AutoDL + Qwen-Image-2.1 写实立绘：设定表四视图 → 半身 → RMBG 抠透明，含 ArcFace 数字验收 | `companion-skills/qwen-standee/SKILL.md` |
 | `krea2-persona-sheet` | 人物资产参考图 / 角色设定表 / 单人立绘（Krea2 方案） | `companion-skills/krea2-persona-sheet/SKILL.md` |
 | `krea2-scene-sheet` | 同一场景多角度参考图（避免场景漂移） | `companion-skills/krea2-scene-sheet/SKILL.md` |
+| `krea2-local-inpaint` | Krea2 出图后局部重绘（inpaint）闭环 | `companion-skills/krea2-local-inpaint/SKILL.md` |
+| `sprite-matte-local` | 本地 rembg 抠图 → 引擎透明 sprite（云端 RMBG 不可用时的兜底） | `companion-skills/sprite-matte-local/SKILL.md` |
+| `zimage-turbo-anime` | z-image-turbo 动漫风出图三条硬经验 | `companion-skills/zimage-turbo-anime/SKILL.md` |
 | `comfy-cloud-mcp` | 通过本地 bridge 调用云端 ComfyUI 出图/查模型 | `companion-skills/comfy-cloud-mcp/SKILL.md` |
 
 > ⚠️ **配套 skill 不绑定作者的云端**：它们只描述方法 + 工作流。**模型文件、ComfyUI 服务、云端实例地址都要使用者自己准备**——详见 `cloud-setup.md`。作者的云端实例地址是运行期向用户索取的，不写死在包里。
@@ -83,7 +91,7 @@ avg-game-maker/
 本包附带一份**引擎 + 2 个完整故事的干净快照**（已排除 `node_modules/dist/.git` 与构建验证垃圾、以及出图/诊断中间产物，约 527MB），让你开箱即玩、对照学习：
 
 - 引擎：TS + Vite 的 AVG 引擎（`index.html` / `src/engine` / `src/ui` / `src/game`）
-- 故事：`src/game/story3`（校园日系《樱色未央》，4 结局）+ `src/game/story4`（都市悬疑《雾港回声》，3 结局）
+- 故事：`src/game/story3`（校园日系《樱色未央》，4 结局）+ `src/game/story5`（悬疑《缄默回廊》/jianmo，多结局）——`story4`（《雾港回声》）已排除（见 `.gitignore`）
 - 资源：`public/`（132 张图 + 23 个音频 wav）
 
 运行方式（在 `avg-engine-example/` 内）：
