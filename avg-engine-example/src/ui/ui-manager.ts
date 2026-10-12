@@ -1206,6 +1206,7 @@ export class UIManager {
 
   /** 防止线索文本里的 < > & 破坏 DOM（与渲染安全一致） */
   private escapeHtml(s: string): string {
+    if (s == null) return '';
     return s.replace(/[&<>"']/g, ch => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[ch] ?? ch));

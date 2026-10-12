@@ -175,8 +175,9 @@ export class GameEngine {
         for (const c of cmd.characters) this.relations.set(c.id, c);
       } else if (cmd.type === 'event' && 'list' in cmd) {
         for (const e of cmd.list) this.eventList.push(e);
-      } else if (cmd.type === 'clue' && 'id' in cmd) {
-        // 仅登记 def（名称/描述/图标）；是否「已拥有」由执行时的 clue 指令标记。
+      } else if (cmd.type === 'clue' && 'id' in cmd && cmd.name) {
+        // 仅当带 name（声明条）才登记/更新 def；收集条（仅 id、无 name）不覆盖已有定义，
+        // 避免「仅 id 收集」写法把已登记的名称/描述清空，导致渲染层拿到的 name 为 undefined 而崩溃。
         this.clueDefs.set(cmd.id, { id: cmd.id, name: cmd.name, desc: cmd.desc, icon: cmd.icon });
       } else if (cmd.type === 'deduce' && 'list' in cmd) {
         for (const d of cmd.list) this.deductionList.push(d);
