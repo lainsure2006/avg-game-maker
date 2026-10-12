@@ -50,12 +50,35 @@ export type ScriptCommand =
   | { type: 'unlock'; ending: string }
   | { type: 'video'; id: string }            // 全屏视频过场（DOM <video> 覆盖播放）
   | { type: 'item'; id: string }            // 弹出物件放大图（证物/信件/照片，DOM 覆盖层，点击关闭）
+  | { type: 'relation'; characters: RelationDef[] }  // 角色养成档案声明（init 预扫描）
+  | { type: 'event'; list: EventDef[] }            // 养成事件监视表声明（init 预扫描）
   | { type: 'end' };
 
 export interface ChoiceItem {
   text: string;
   label: string;
   condition?: string;  // 可选条件
+}
+
+/** 角色关系/养成档案（由 `relation` 指令声明，init 时预扫描登记） */
+export interface RelationDef {
+  id: string;          // 角色 id（与 sprite key 对应）
+  name: string;        // 显示名
+  personality?: string;// 性格描述
+  likes?: string;      // 好恶·喜
+  dislikes?: string;   // 好恶·恶
+  affinity: string;    // 好感变量名（数值，如 aff_gucheng）
+  min?: number;        // 好感刻度下限（默认 -10）
+  max?: number;        // 好感刻度上限（默认 10）
+}
+
+/** 养成事件定义（由 `event` 指令声明，set 后引擎自动判定触发） */
+export interface EventDef {
+  id: string;          // 事件唯一 id
+  when: string;        // 触发条件（复用 VariableSystem.evaluate 语法）
+  jump: string;        // 命中后跳转的 label
+  once?: boolean;      // 是否只触发一次（用 flag.event.<id> 守门，读档安全）
+  toast?: string;      // 触发时的瞬时提示文案（可选）
 }
 
 /** 结局收集条目（由故事在 StoryDef.endings 中声明） */

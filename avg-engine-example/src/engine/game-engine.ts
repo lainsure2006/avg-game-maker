@@ -14,6 +14,8 @@ import type {
   AnimationDef,
   TitleScreenConfig,
   TitleScreenAction,
+  RelationDef,
+  EventDef,
 } from './types';
 import { Renderer } from './renderer';
 import { VariableSystem } from './variables';
@@ -60,6 +62,10 @@ export class GameEngine {
   private commands: ScriptCommand[] = [];
   private commandIndex: number = 0;
   private labels: Map<string, number> = new Map();
+
+  // 养成系统（阶段1）：角色档案 + 事件监视表（init 时预扫描登记，读档安全）
+  private relations: Map<string, RelationDef> = new Map();
+  private eventList: EventDef[] = [];
 
   // 状态
   private characters: Map<string, CharacterState> = new Map();
@@ -124,6 +130,8 @@ export class GameEngine {
   onGalleryOpen: (() => void) | null = null;
   /** 游戏抵达结局（unlock 后由 end 指令触发）；endingId 为 null 表示未配置 unlock 的纯“剧终” */
   onEndingReached: ((endingId: string | null) => void) | null = null;
+  /** 养成事件触发（由「set 后自动判定」触发）；UI 据此弹瞬时提示 */
+  onEventFired: ((id: string, toast?: string) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -143,6 +151,18 @@ export class GameEngine {
         this.labels.set(cmd.id, i);
       }
     });
+
+    // 预扫描 relation/event 声明（读档安全：不依赖执行顺序，
+    // 即使从存档恢复跳过了脚本前段的声明指令，档案与事件表也已就位）。
+    this.relations.clear();
+    this.eventList = [];
+    for (const cmd of this.commands) {
+      if (cmd.type === 'relation' && 'characters' in cmd) {
+        for (const c of cmd.characters) this.relations.set(c.id, c);
+      } else if (cmd.type === 'event' && 'list' in cmd) {
+        for (const e of cmd.list) this.eventList.push(e);
+      }
+    }
 
     // 加载资源
     await this.assets.loadManifest(manifest, (pct) => {
@@ -595,9 +615,19 @@ export class GameEngine {
       case 'set': {
         this.variables.set(cmd.variable, cmd.value, cmd.op);
         this.commandIndex++;
+        // 养成事件监视：set 后自动判定，命中则跳转（checkEvents 内部已 executeNext）。
+        // 声明为 relation/event 的指令本身在 init 时已预扫描，这里作为 no-op 直接跳过。
+        if (this.checkEvents()) return;
         this.executeNext();
         break;
       }
+
+      case 'relation':
+      case 'event':
+        // 声明类指令：init 时已预扫描登记，运行时不再执行任何操作，仅推进指针。
+        this.commandIndex++;
+        this.executeNext();
+        break;
 
       case 'wait': {
         this.waitTimer = cmd.duration;
@@ -962,6 +992,34 @@ export class GameEngine {
   /** 获取对话历史 */
   getBacklog(): BacklogEntry[] {
     return this.backlog;
+  }
+
+  /**
+   * 养成事件监视：遍历事件表，对未触发过（once 且已置 flag.event.<id>）的事件求值条件，
+   * 命中则置守门 flag、回调 onEventFired、跳转到事件 label。
+   * 在「每次 set 之后」被调用，使属性变化能自动触发剧情事件，作者无需满剧本撒 if。
+   * @returns 是否发生了跳转（true 时调用方不应再 executeNext）
+   */
+  private checkEvents(): boolean {
+    for (const ev of this.eventList) {
+      if (ev.once && this.variables.hasFlag('event.' + ev.id)) continue;
+      if (this.variables.evaluate(ev.when)) {
+        if (ev.once) this.variables.setFlag('event.' + ev.id);
+        this.onEventFired?.(ev.id, ev.toast);
+        const idx = this.labels.get(ev.jump);
+        if (idx !== undefined) {
+          this.commandIndex = idx;
+          this.executeNext();
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /** 获取角色关系档案（供 UI 关系面板渲染） */
+  getRelations(): RelationDef[] {
+    return Array.from(this.relations.values());
   }
 
   /** 暂停 */

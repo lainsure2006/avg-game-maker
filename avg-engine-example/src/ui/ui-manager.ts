@@ -31,6 +31,15 @@ export class UIManager {
   private settingsPanel: HTMLElement;
   private backlogPanel: HTMLElement;
   private backlogContent: HTMLElement;
+
+  // 角色关系面板（阶段1：人物养成）
+  private relationsPanel: HTMLElement;
+  private relationsContent: HTMLElement;
+  private btnRelations: HTMLElement;
+  private btnRelationsClose: HTMLElement;
+  private eventToast: HTMLElement;
+  private eventToastTimer: number = 0;
+
   private advanceLockUntil: number = 0;
 
   // 首页元素
@@ -96,6 +105,13 @@ export class UIManager {
     this.backlogPanel = document.getElementById('backlog-panel')!;
     this.backlogContent = document.getElementById('backlog-content')!;
 
+    // 角色关系面板（阶段1）
+    this.relationsPanel = document.getElementById('relations-panel')!;
+    this.relationsContent = document.getElementById('relations-content')!;
+    this.btnRelations = document.getElementById('btn-relations')!;
+    this.btnRelationsClose = document.getElementById('btn-relations-close')!;
+    this.eventToast = document.getElementById('event-toast')!;
+
     // 首页元素
     this.titleMenu = document.getElementById('title-menu')!;
     this.btnTitleStart = document.getElementById('btn-title-start')!;
@@ -157,6 +173,12 @@ export class UIManager {
     // 游戏抵达结局 → 弹出结局提示（避免玩家以为游戏卡住）
     this.engine.onEndingReached = (endingId) => {
       this.showEndingModal(endingId);
+    };
+
+    // 养成事件触发 → 瞬时提示（若关系面板正打开则同步刷新好感条）
+    this.engine.onEventFired = (id, toast) => {
+      this.showEventToast(toast ?? `事件：${id}`);
+      if (!this.relationsPanel.classList.contains('hidden')) this.renderRelations();
     };
 
     // 首页状态变化
@@ -359,6 +381,17 @@ export class UIManager {
       this.hideBacklog();
     }, { signal: sig });
 
+    // 角色关系面板（阶段1）
+    this.btnRelations.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleRelations();
+    }, { signal: sig });
+
+    this.btnRelationsClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.hideRelations();
+    }, { signal: sig });
+
     // 故事选择关闭
     document.getElementById('btn-story-select-close')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -370,7 +403,8 @@ export class UIManager {
       if (this.saveLoadPanel.classList.contains('hidden') &&
           this.settingsPanel.classList.contains('hidden') &&
           this.backlogPanel.classList.contains('hidden') &&
-          this.storySelectPanel.classList.contains('hidden')) {
+          this.storySelectPanel.classList.contains('hidden') &&
+          this.relationsPanel.classList.contains('hidden')) {
         switch (e.key) {
           case ' ':
           case 'Enter':
@@ -386,6 +420,7 @@ export class UIManager {
         this.hideSettings();
         this.hideBacklog();
         this.hideStorySelect();
+        this.hideRelations();
       }
     }, { signal: sig });
   }
@@ -927,6 +962,83 @@ export class UIManager {
     this.backlogPanel.classList.add('hidden');
   }
 
+  // ========== 角色关系面板（阶段1：人物养成） ==========
+  private toggleRelations(): void {
+    if (this.relationsPanel.classList.contains('hidden')) this.showRelations();
+    else this.hideRelations();
+  }
+
+  private showRelations(): void {
+    this.renderRelations();
+    this.relationsPanel.classList.remove('hidden');
+  }
+
+  private hideRelations(): void {
+    this.relationsPanel.classList.add('hidden');
+  }
+
+  /** 渲染角色关系卡片：性格/好恶/好感进度条（好感值实时取自变量系统） */
+  private renderRelations(): void {
+    const relations = this.engine.getRelations();
+    this.relationsContent.innerHTML = '';
+
+    if (relations.length === 0) {
+      const tip = document.createElement('div');
+      tip.className = 'ending-empty';
+      tip.textContent = '本故事暂未声明角色关系（relation 指令）。';
+      this.relationsContent.appendChild(tip);
+      return;
+    }
+
+    for (const r of relations) {
+      const min = r.min ?? -10;
+      const max = r.max ?? 10;
+      const raw = Number(this.engine.variables.get(r.affinity)) || 0;
+      const val = Math.max(min, Math.min(max, raw));
+
+      // 好感条：以中点(0)为界，正负各占半边。fillLeft/fillWidth 用百分比定位。
+      const half = 50;
+      const magPct = (Math.abs(val) / (val >= 0 ? max : -min)) * half;
+      const fillLeft = val >= 0 ? half : half - magPct;
+      const fillWidth = val >= 0 ? magPct : magPct;
+
+      const card = document.createElement('div');
+      card.className = 'relation-card';
+
+      const tags: string[] = [];
+      if (r.likes) tags.push(`<span class="relation-tag like">喜·${r.likes}</span>`);
+      if (r.dislikes) tags.push(`<span class="relation-tag dislike">恶·${r.dislikes}</span>`);
+
+      card.innerHTML = `
+        <div class="relation-name">${r.name}</div>
+        ${r.personality ? `<div class="relation-personality">${r.personality}</div>` : ''}
+        ${tags.length ? `<div class="relation-tags">${tags.join('')}</div>` : ''}
+        <div class="affinity-row">
+          <span class="affinity-label">好感</span>
+          <div class="affinity-bar">
+            <div class="mid"></div>
+            <div class="affinity-fill ${val >= 0 ? 'pos' : 'neg'}" style="left:${fillLeft}%;width:${fillWidth}%"></div>
+          </div>
+          <span class="affinity-value">${val}</span>
+        </div>
+      `;
+      this.relationsContent.appendChild(card);
+    }
+  }
+
+  /** 养成事件触发瞬时提示（2.5s 后自动淡出） */
+  private showEventToast(text: string): void {
+    this.eventToast.innerHTML = `<span class="toast-badge">🔔</span><span>${text}</span>`;
+    this.eventToast.classList.remove('hidden');
+    void this.eventToast.offsetWidth; // 强制重绘以触发 transition
+    this.eventToast.classList.add('show');
+    if (this.eventToastTimer) clearTimeout(this.eventToastTimer);
+    this.eventToastTimer = window.setTimeout(() => {
+      this.eventToast.classList.remove('show');
+      window.setTimeout(() => this.eventToast.classList.add('hidden'), 300);
+    }, 2500);
+  }
+
   /** 持久化设置 */
   private saveSettings(): void {
     try {
@@ -970,5 +1082,6 @@ export class UIManager {
     this.engine.onTitleScreenChange = null;
     this.engine.onTitleAction = null;
     this.engine.onEndingReached = null;
+    this.engine.onEventFired = null;
   }
 }

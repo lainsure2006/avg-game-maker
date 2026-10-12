@@ -3,7 +3,7 @@
  * 将 YAML-like 脚本解析为指令序列
  */
 
-import type { ScriptCommand, GradeType, WeatherType, TransitionType } from './types';
+import type { ScriptCommand, GradeType, WeatherType, TransitionType, RelationDef, EventDef } from './types';
 
 /**
  * 解析脚本 JSON 为指令序列
@@ -136,6 +136,18 @@ export function parseScript(script: Record<string, unknown>[]): ScriptCommand[] 
         return {
           type: 'unlock',
           ending: item.ending as string,
+        } as ScriptCommand;
+
+      case 'relation':
+        return {
+          type: 'relation',
+          characters: (item.characters as RelationDef[]) || [],
+        } as ScriptCommand;
+
+      case 'event':
+        return {
+          type: 'event',
+          list: (item.list as EventDef[]) || [],
         } as ScriptCommand;
 
       default:
