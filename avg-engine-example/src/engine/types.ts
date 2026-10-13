@@ -55,6 +55,8 @@ export type ScriptCommand =
   | { type: 'clue'; id: string; name: string; desc: string; icon?: string }  // 线索声明+收集（init 预扫描 def；执行时标记为已拥有）
   | { type: 'deduce'; list: DeductionDef[] }       // 推理规则声明（init 预扫描）
   | { type: 'explore'; bg: string; widthRatio?: number; hint?: string; hotspots: ExploreHotspot[] }  // 阶段3：探索模式（宽图左右平移，点击热区收集线索/弹出道具）
+  | { type: 'hub'; title?: string; bg?: string; time: string[]; apPerPhase?: number; onEnd: string; nodes: HubNode[] }  // 阶段4：场景自选枢纽（地图节点 + 时间阶段 + 行动点）
+  | { type: 'returnHub' }  // 阶段4：场景结束后回到枢纽（消耗已计入进入节点时）
   | { type: 'end' };
 
 export interface ChoiceItem {
@@ -129,6 +131,34 @@ export interface ExploreInfo {
   total: number;       // 热区总数
 }
 
+/** 阶段4：枢纽节点（由 `hub` 指令声明） */
+export interface HubNode {
+  id: string;          // 节点唯一 id
+  label: string;       // 节点显示名（如「病房」「档案室」）
+  bg?: string;         // 进入该节点时的背景 id（可选，用于过场提示）
+  requires?: string;   // 解锁条件（复用 VariableSystem.evaluate 语法，如 `flag.x` 或 `v_done == 1`）；不满足则锁定
+  locked_msg?: string; // 未解锁时提示文案
+  jump: string;        // 进入该场景的 label
+}
+
+/** 阶段4：枢纽定义（由 `hub` 指令声明） */
+export interface HubDef {
+  title?: string;      // 枢纽标题（如「缄默回廊·第一天」）
+  bg?: string;         // 枢纽背景 id（对应 manifest.backgrounds）
+  time: string[];      // 时间阶段名数组（长度 = 阶段数 N）
+  apPerPhase?: number; // 每阶段行动点（默认 1）
+  onEnd: string;       // 时限到跳转的 label（收尾剧情）
+  nodes: HubNode[];
+}
+
+/** 阶段4：枢纽进入信息（供 UI 渲染覆盖层） */
+export interface HubInfo {
+  title?: string;
+  timePhases: string[];
+  apPerPhase: number;
+  nodes: HubNode[];
+}
+
 /** 结局收集条目（由故事在 StoryDef.endings 中声明） */
 export interface EndingDef {
   id: string;          // 与 unlock 指令的 ending 值对应
@@ -136,6 +166,13 @@ export interface EndingDef {
   desc: string;        // 结局简介
   how: string;         // 如何达成（点击卡片后详情中展示，给玩家解锁方向）
   thumbnail: string;   // 缩略图路径（通常使用该结局代表背景图，如 '/images/bg/street.png'）
+}
+
+/** 阶段4：枢纽存档状态（读档恢复用） */
+export interface HubSaveState {
+  def: HubDef;         // 枢纽定义（纯数据，可序列化）
+  phase: number;       // 当前时间阶段索引
+  apLeft: number;      // 当前阶段剩余行动点
 }
 
 export type TransitionType = 'fade' | 'slide-left' | 'slide-right' | 'none' | 'iris' | 'dissolve' | 'flash';
@@ -198,6 +235,7 @@ export interface SerializedGameState {
   variables: Record<string, number | string | boolean>;
   flags: string[];
   clues: string[];     // 已收集线索 id 列表（读档恢复用）
+  hub: HubSaveState | null;  // 阶段4：中枢纽状态（读档恢复用，非枢纽中则为 null）
   backlog: BacklogEntry[];
   scene: {
     bg: string | null;

@@ -179,6 +179,23 @@
           <button id="btn-explore-right" title="向右看">▶</button>
         </div>
       </div>
+      <!-- 阶段4：场景自选枢纽覆盖层（节点地图 + 时间/行动点） -->
+      <div id="hub-overlay" class="hidden">
+        <div id="hub-panel">
+          <div id="hub-header">
+            <div id="hub-title"></div>
+            <div id="hub-status">
+              <span id="hub-time-phase"></span>
+              <span id="hub-ap"></span>
+            </div>
+          </div>
+          <div id="hub-grid"></div>
+          <div id="hub-footer">
+            <button id="btn-hub-end-day">结束今天</button>
+          </div>
+        </div>
+        <div id="hub-locked-toast" class="hidden"></div>
+      </div>
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>

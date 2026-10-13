@@ -54,7 +54,7 @@
   ↓
 阶段3  探索模式（宽图平移 + 热区点击）                  ← ✅ 已完成
   ↓
-阶段4  场景自选 hub 地图 + 时间/行动点系统
+阶段4  场景自选 hub 地图 + 时间/行动点系统              ← ✅ 已实现（待实测）
   ↓
 阶段5  动画/特效润色（视差/宽银幕/微表情）
   ↓
@@ -187,15 +187,78 @@ interface DeductionDef {
 
 ---
 
-## 7. 后续阶段（占位，逐阶段展开 SPEC）
+## 7. 阶段 4 · 场景自选 hub（✅ 已实现 · 待实测）
 
-- **阶段4 场景自选 hub**：`hub` 地图层（节点+requires+locked_msg）；`time` 时间阶段 + `action_points` 行动点。
+> 时间/行动点采用「日程表模型」：N 个时间阶段 × 每阶段 M 行动点；阶段内可访问多个节点，行动点花完自动进入下一时段；全部时段结束才收尾（或玩家主动「结束今天」）。
+
+### 7.1 新增数据结构（types.ts）
+```ts
+interface HubNode {
+  id: string;          // 节点 id
+  label: string;       // 显示名（如「病房」）
+  bg?: string;         // 进入节点时的背景 id（可选）
+  requires?: string;   // 解锁条件（复用 evaluate 语法，如 `v_ward_done == 1` / `flag.x`）
+  locked_msg?: string; // 未解锁提示
+  jump: string;        // 进入该场景的 label
+}
+interface HubDef {
+  title?: string;      // 枢纽标题
+  bg?: string;         // 枢纽背景 id
+  time: string[];      // 时间阶段名数组（长度 = 阶段数 N）
+  apPerPhase?: number; // 每阶段行动点（默认 1）
+  onEnd: string;       // 时限到跳转的 label（收尾剧情）
+  nodes: HubNode[];
+}
+```
+
+### 7.2 新增脚本指令
+```jsonc
+{ "type": "hub", "title":"荒岛医院·第一天", "bg":"hub_bg",
+  "time":["上午","午后","黄昏","夜晚"], "apPerPhase":1, "onEnd":"day_end",
+  "nodes":[
+    { "id":"ward","label":"病房","jump":"sc_ward" },
+    { "id":"archive","label":"档案室","requires":"v_ward_done == 1",
+      "locked_msg":"先去病房找到线索","jump":"sc_archive" }
+  ] }
+// 节点场景从 label 进入，末尾用 returnHub 回到枢纽：
+{ "type":"label", "id":"sc_ward" }
+// ...scene/dialog/set/clue...
+{ "type":"returnHub" }
+```
+
+### 7.3 引擎改动（game-engine.ts）
+- 新增 `hubDef / hubPhase / hubApLeft / hubEnded / waitingForHub` 状态字段。
+- `hub` 指令：`commandIndex++` 跳过自身后 `enterHub(def)`（与 explore 同款防重入）；设 `waitingForHub=true`，回调 `onHubEnter/onHubUpdate`。
+- `selectHubNode(id)`：校验 `requires`（不满足 → `onHubLocked`）；扣 1 行动点；跳 `node.jump`。
+- `returnHub` 指令：`exitHubReturn()`——行动点耗尽则 `hubPhase++`（到顶跳 `onEnd` 收尾），否则 `reenterHub()` 回枢纽。
+- `endHubEarly()`：「结束今天」主动收尾。
+- 主循环新增分支：枢纽激活时画布渲染 `renderer.renderHubBg`（DOM 覆盖层画节点）。
+- `advance()` 在 `waitingForHub` 时 no-op（防画布点击误推进）。
+- 存档：`SerializedGameState.hub` 记录 `{def, phase, apLeft}`；读档若处于枢纽则 `reenterHub()`（读档安全）。
+
+### 7.4 UI 改动（ui-manager.ts + index.html + main.css）
+- `#hub-overlay` 覆盖层：标题 + 状态条（🕐 时段 X/N · ⚡ 行动点 a/b）+ 节点网格 + 「结束今天」按钮 + locked toast。
+- 节点卡片：解锁→📍可点；锁定→🔒灰显 + `locked_msg`。状态条随 `onHubUpdate` 刷新。
+- 进入枢纽隐藏顶栏/对话框；离开（进场景/收尾）恢复顶栏。
+
+### 7.5 验收判据
+- [ ] 进入 hub 后显示 N 个时段、行动点，节点网格可见；点击解锁节点 → 进场景、扣 1 行动点。
+- [ ] 行动点耗尽 → 自动推进时间；全部时段走完 → 跳 onEnd 收尾。
+- [ ] 锁定节点灰显，点击弹 `locked_msg`；去病房设 `v_ward_done` 后档案室解锁。
+- [ ] 「结束今天」可提前收尾。
+- [ ] 读档若处于枢纽，恢复后枢纽仍在（时间/行动点正确）。
+- [ ] 示例 story10「场景自选示例」从标题屏可进入完整演示（4 时段×1 行动点，档案室锁）。
+
+---
+
+## 8. 后续阶段（占位，逐阶段展开 SPEC）
+
 - **阶段5 动画特效**：宽图视差分层、电影宽银幕（16:9 黑边+缓推）、线索拾取闪光、立绘入场弹跳、眨眼/微表情。
 - **阶段6 可选**：QTE（可关）、世界观图鉴 Codex、多周目路线锁 + NG+ 携带好感。
 
 ---
 
-## 8. 提交约定
+## 9. 提交约定
 - 每阶段一个 commit，message 前缀 `[阶段N]`。
 - 验证（build + 示例故事实测）通过后才合并进 master 并推送 CNB。
 - 示例故事（story7…）验证满意后可整体删除，不影响正式故事。

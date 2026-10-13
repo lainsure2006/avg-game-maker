@@ -21,6 +21,9 @@ import type {
   ExploreHotspot,
   ExploreDef,
   ExploreInfo,
+  HubDef,
+  HubNode,
+  HubInfo,
 } from './types';
 import { Renderer } from './renderer';
 import { VariableSystem } from './variables';
@@ -84,6 +87,14 @@ export class GameEngine {
   private exploreWidthRatio: number = 2;
   private exploreFound: Set<string> = new Set();
   private waitingForExplore: boolean = false;
+
+  // 场景自选枢纽（阶段4）：时间阶段 + 行动点（日程表模型）
+  private hubDef: HubDef | null = null;
+  private hubBgImage: HTMLImageElement | null = null;
+  private hubPhase: number = 0;          // 当前时间阶段索引 0..N-1
+  private hubApLeft: number = 0;         // 当前阶段剩余行动点
+  private hubEnded: boolean = false;
+  private waitingForHub: boolean = false;
 
   // 状态
   private characters: Map<string, CharacterState> = new Map();
@@ -160,6 +171,14 @@ export class GameEngine {
   onExploreFound: ((found: number, total: number, label?: string) => void) | null = null;
   /** 退出探索模式（UI 据此隐藏 HUD） */
   onExploreExit: (() => void) | null = null;
+  /** 进入枢纽（UI 据此显示覆盖层） */
+  onHubEnter: ((info: HubInfo) => void) | null = null;
+  /** 枢纽时间/行动点更新（UI 据此刷新顶栏状态条） */
+  onHubUpdate: ((phase: number, apLeft: number, totalPhases: number) => void) | null = null;
+  /** 节点未解锁（UI 据此弹提示） */
+  onHubLocked: ((msg: string) => void) | null = null;
+  /** 退出枢纽（UI 据此隐藏覆盖层） */
+  onHubExit: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -336,6 +355,18 @@ export class GameEngine {
     this.running = true;
     this.lastTime = performance.now();
     this.loop(this.lastTime);
+
+    // 读档时正处于枢纽（暂停态）：恢复枢纽定义/时间/行动点并重新进入覆盖层，
+    // 不执行 commandIndex 处指令（枢纽靠节点跳转/收尾按 label 路由）。
+    if (state.hub) {
+      this.hubDef = state.hub.def;
+      this.hubPhase = state.hub.phase;
+      this.hubApLeft = state.hub.apLeft;
+      this.hubEnded = false;
+      this.reenterHub();
+      return;
+    }
+
     // 关键修复：执行当前指令，渲染存档处的对话/画面
     this.executeNext();
   }
@@ -355,6 +386,13 @@ export class GameEngine {
           this.exploreBgImage, this.exploreOffset, this.exploreWidthRatio,
           this.exploreDef!.hotspots, this.exploreFound,
         );
+      } else if (this.waitingForHub) {
+        // 阶段4：枢纽激活时，画布渲染枢纽背景（节点由 DOM 覆盖层绘制）
+        if (this.hubBgImage) {
+          this.renderer.renderHubBg(this.hubBgImage);
+        } else {
+          this.renderer.clearToColor('#0b0e14');
+        }
       } else {
         this.renderer.update(dt);
         this.update(dt);
@@ -702,6 +740,21 @@ export class GameEngine {
         break;
       }
 
+      case 'hub': {
+        // 阶段4：场景自选枢纽。先跳过本指令（避免 returnHub 后再次进入），
+        // 再进入枢纽并暂停主脚本推进，直到节点跳转 / onEnd 收尾。
+        this.commandIndex++;
+        this.enterHub(cmd);
+        break;
+      }
+
+      case 'returnHub': {
+        // 阶段4：场景结束回到枢纽（行动点已在进入节点时扣除）；
+        // 若当前阶段行动点耗尽则推进时间，全时段结束则跳 onEnd 收尾。
+        this.exitHubReturn();
+        break;
+      }
+
       case 'wait': {
         this.waitTimer = cmd.duration;
         this.commandIndex++;
@@ -960,6 +1013,7 @@ export class GameEngine {
   advance(): void {
     if (!this.running) return;
     if (this.waitingForChoice) return; // 等待选择
+    if (this.waitingForHub) return;     // 阶段4：枢纽激活时点击节点由 UI 处理，画布点击不推进
 
     // 视频过场中：点击 = 跳过，恢复命令循环
     if (this.waitingForVideo) {
@@ -1044,6 +1098,9 @@ export class GameEngine {
       variables: this.variables.export(),
       flags: this.variables.exportFlags(),
       clues: Array.from(this.ownedClues),
+      hub: this.waitingForHub && this.hubDef
+        ? { def: this.hubDef, phase: this.hubPhase, apLeft: this.hubApLeft }
+        : null,
       backlog: this.backlog,
       scene: {
         bg: this.getCurrentBgId(),
@@ -1211,6 +1268,108 @@ export class GameEngine {
       }
     }
     return false;
+  }
+
+  // ========== 阶段4：场景自选枢纽（hub） ==========
+  /** 进入枢纽（由 `hub` 指令调用；暂停脚本直到节点跳转 / onEnd 收尾） */
+  private enterHub(def: HubDef): void {
+    this.hubDef = def;
+    this.hubPhase = 0;
+    this.hubApLeft = def.apPerPhase ?? 1;
+    this.hubEnded = false;
+    this.waitingForHub = true;
+    const url = def.bg ? this.manifest?.backgrounds[def.bg] : undefined;
+    this.hubBgImage = url ? (this.assets.getImage(url) ?? null) : null;
+    this.onHubEnter?.({
+      title: def.title,
+      timePhases: def.time,
+      apPerPhase: def.apPerPhase ?? 1,
+      nodes: def.nodes,
+    });
+    this.onHubUpdate?.(this.hubPhase, this.hubApLeft, def.time.length);
+  }
+
+  /** 是否处于枢纽（供 UI 判断输入路由） */
+  isInHub(): boolean {
+    return this.waitingForHub;
+  }
+
+  /** 重新进入枢纽（读档恢复，或场景 returnHub 后回到枢纽） */
+  private reenterHub(): void {
+    if (!this.hubDef) return;
+    this.waitingForHub = true;
+    this.onHubEnter?.({
+      title: this.hubDef.title,
+      timePhases: this.hubDef.time,
+      apPerPhase: this.hubDef.apPerPhase ?? 1,
+      nodes: this.hubDef.nodes,
+    });
+    this.onHubUpdate?.(this.hubPhase, this.hubApLeft, this.hubDef.time.length);
+  }
+
+  /** 玩家在枢纽选择一个节点（消耗 1 行动点后跳转到节点场景） */
+  selectHubNode(id: string): void {
+    if (!this.waitingForHub || !this.hubDef) return;
+    const node = this.hubDef.nodes.find(n => n.id === id);
+    if (!node) return;
+    // 锁定检查（requires 不满足则提示并忽略）
+    if (node.requires && !this.variables.evaluate(node.requires)) {
+      this.onHubLocked?.(node.locked_msg ?? '该地点尚未解锁');
+      return;
+    }
+    // 消耗行动点
+    this.hubApLeft = Math.max(0, this.hubApLeft - 1);
+    // 进入节点场景（jump 到该 label）
+    const idx = this.labels.get(node.jump);
+    if (idx === undefined) {
+      console.warn(`枢纽节点跳转标签未找到: ${node.jump}`);
+      this.hubApLeft += 1; // 回滚扣除
+      return;
+    }
+    this.waitingForHub = false;
+    this.onHubExit?.();
+    this.commandIndex = idx;
+    this.executeNext();
+  }
+
+  /** 场景末尾 returnHub：回到枢纽；若阶段行动点耗尽则推进时间；全时段结束则收尾 */
+  private exitHubReturn(): void {
+    if (!this.hubDef) { this.executeNext(); return; }
+    // 时间推进：当前阶段行动点耗尽 → 进入下一时间阶段；全部阶段结束 → 收尾
+    if (this.hubApLeft <= 0) {
+      this.hubPhase += 1;
+      if (this.hubPhase >= this.hubDef.time.length) {
+        this.hubEnded = true;
+        this.waitingForHub = false;
+        this.onHubExit?.();
+        const idx = this.labels.get(this.hubDef.onEnd);
+        if (idx !== undefined) {
+          this.commandIndex = idx;
+          this.executeNext();
+          return;
+        }
+        this.executeNext();
+        return;
+      }
+      this.hubApLeft = this.hubDef.apPerPhase ?? 1;
+    }
+    // 回到枢纽（不前进 commandIndex；节点跳转/收尾均按 label 路由）
+    this.reenterHub();
+  }
+
+  /** 提前结束当天（玩家主动点「结束今天」）：直接跳 onEnd 收尾 */
+  endHubEarly(): void {
+    if (!this.waitingForHub || !this.hubDef) return;
+    this.hubEnded = true;
+    this.waitingForHub = false;
+    this.onHubExit?.();
+    const idx = this.labels.get(this.hubDef.onEnd);
+    if (idx !== undefined) {
+      this.commandIndex = idx;
+      this.executeNext();
+      return;
+    }
+    this.executeNext();
   }
 
   /** 暂停 */

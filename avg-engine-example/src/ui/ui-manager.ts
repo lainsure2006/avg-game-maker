@@ -4,7 +4,7 @@
  */
 
 import type { GameEngine } from '../engine/game-engine';
-import type { ChoiceItem, BacklogEntry, GameSettings, TitleScreenConfig, TitleScreenAction, EndingDef, ClueDef } from '../engine/types';
+import type { ChoiceItem, BacklogEntry, GameSettings, TitleScreenConfig, TitleScreenAction, EndingDef, ClueDef, HubNode } from '../engine/types';
 import type { StoryConfig } from '../game/index';
 import { switchStory } from '../game/index';
 
@@ -66,6 +66,18 @@ export class UIManager {
   private btnExploreRight: HTMLElement;
   private btnExploreEnd: HTMLElement;
   private exploreHintText: string = '';
+
+  // 阶段4：场景自选枢纽覆盖层
+  private hubOverlay: HTMLElement;
+  private hubTitle: HTMLElement;
+  private hubTimePhase: HTMLElement;
+  private hubAp: HTMLElement;
+  private hubGrid: HTMLElement;
+  private btnHubEndDay: HTMLElement;
+  private hubLockedToast: HTMLElement;
+  private hubLockedToastTimer: number = 0;
+  private hubTimePhases: string[] = [];
+  private hubApPerPhase: number = 1;
 
   // 首页元素
   private titleMenu: HTMLElement;
@@ -157,6 +169,15 @@ export class UIManager {
     this.btnExploreRight = document.getElementById('btn-explore-right')!;
     this.btnExploreEnd = document.getElementById('btn-explore-end')!;
 
+    // 阶段4：场景自选枢纽覆盖层
+    this.hubOverlay = document.getElementById('hub-overlay')!;
+    this.hubTitle = document.getElementById('hub-title')!;
+    this.hubTimePhase = document.getElementById('hub-time-phase')!;
+    this.hubAp = document.getElementById('hub-ap')!;
+    this.hubGrid = document.getElementById('hub-grid')!;
+    this.btnHubEndDay = document.getElementById('btn-hub-end-day')!;
+    this.hubLockedToast = document.getElementById('hub-locked-toast')!;
+
     this.eventToast = document.getElementById('event-toast')!;
 
     // 首页元素
@@ -244,6 +265,12 @@ export class UIManager {
     this.engine.onExploreFound = (found, total, label) => this.updateExploreCount(found, total, label);
     this.engine.onExploreExit = () => this.hideExploreHud();
 
+    // 阶段4：场景自选枢纽回调
+    this.engine.onHubEnter = (info) => this.showHub(info);
+    this.engine.onHubUpdate = (phase, apLeft, totalPhases) => this.updateHubStatus(phase, apLeft, totalPhases);
+    this.engine.onHubLocked = (msg) => this.showHubLocked(msg);
+    this.engine.onHubExit = () => this.hideHub();
+
     // 首页状态变化
     this.engine.onTitleScreenChange = (visible) => {
       if (visible) {
@@ -311,7 +338,7 @@ export class UIManager {
 
     // 点击画布推进
     document.getElementById('game-canvas')?.addEventListener('click', () => {
-      if (!this.engine.isOnTitleScreen() && !this.engine.isExploring()) {
+      if (!this.engine.isOnTitleScreen() && !this.engine.isExploring() && !this.engine.isInHub()) {
         this.advanceOnce();
       }
     }, { signal: sig });
@@ -346,6 +373,20 @@ export class UIManager {
     this.btnExploreLeft.addEventListener('click', () => this.engine.panExplore(-0.3));
     this.btnExploreRight.addEventListener('click', () => this.engine.panExplore(0.3));
     this.btnExploreEnd.addEventListener('click', () => this.engine.exitExplore());
+
+    // 阶段4：枢纽覆盖层
+    this.btnHubEndDay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.engine.endHubEarly();
+    }, { signal: sig });
+    // 节点网格事件委托：点击节点卡片 → 引擎 selectHubNode（锁定节点由引擎判定并回调 onHubLocked）
+    this.hubGrid.addEventListener('click', (e) => {
+      const card = (e.target as HTMLElement).closest('[data-node-id]') as HTMLElement | null;
+      if (!card) return;
+      e.stopPropagation();
+      const id = card.dataset.nodeId;
+      if (id) this.engine.selectHubNode(id);
+    }, { signal: sig });
 
     // 首页按钮
     this.btnTitleStart.addEventListener('click', (e) => {
@@ -1267,6 +1308,59 @@ export class UIManager {
     window.setTimeout(() => { this.exploreHint.textContent = this.exploreHintText; }, 1200);
   }
 
+  // ========== 阶段4：场景自选枢纽覆盖层 ==========
+  private showHub(info: { title?: string; timePhases: string[]; apPerPhase: number; nodes: HubNode[] }): void {
+    this.hubTimePhases = info.timePhases;
+    this.hubApPerPhase = info.apPerPhase;
+    this.hubTitle.textContent = info.title ?? '选择要去的地方';
+    this.renderHubNodes(info.nodes);
+    this.hubOverlay.classList.remove('hidden');
+    this.dialogBox.classList.add('hidden');
+    this.topBar.classList.add('hidden');
+  }
+
+  /** 渲染节点网格（锁定节点灰显 + 🔒 + 提示；解锁后可点击） */
+  private renderHubNodes(nodes: HubNode[]): void {
+    this.hubGrid.innerHTML = '';
+    for (const node of nodes) {
+      const locked = node.requires ? !this.engine.variables.evaluate(node.requires) : false;
+      const card = document.createElement('div');
+      card.className = 'hub-node' + (locked ? ' locked' : '');
+      card.dataset.nodeId = node.id;
+      card.innerHTML = `
+        <div class="hub-node-icon">${locked ? '🔒' : '📍'}</div>
+        <div class="hub-node-label">${this.escapeHtml(node.label)}</div>
+        ${locked ? `<div class="hub-node-lock">${this.escapeHtml(node.locked_msg ?? '尚未解锁')}</div>` : ''}
+      `;
+      this.hubGrid.appendChild(card);
+    }
+  }
+
+  /** 刷新顶栏时间阶段 / 行动点状态条 */
+  private updateHubStatus(phase: number, apLeft: number, totalPhases: number): void {
+    const phaseName = this.hubTimePhases[phase] ?? `时段 ${phase + 1}`;
+    this.hubTimePhase.textContent = `🕐 ${phaseName}（${phase + 1}/${totalPhases}）`;
+    this.hubAp.textContent = `⚡ 行动点 ${apLeft}/${this.hubApPerPhase}`;
+  }
+
+  private hideHub(): void {
+    this.hubOverlay.classList.add('hidden');
+    this.topBar.classList.remove('hidden');
+  }
+
+  /** 节点未解锁瞬时提示 */
+  private showHubLocked(msg: string): void {
+    this.hubLockedToast.textContent = `🔒 ${msg}`;
+    this.hubLockedToast.classList.remove('hidden');
+    void this.hubLockedToast.offsetWidth; // 强制重绘以触发 transition
+    this.hubLockedToast.classList.add('show');
+    if (this.hubLockedToastTimer) clearTimeout(this.hubLockedToastTimer);
+    this.hubLockedToastTimer = window.setTimeout(() => {
+      this.hubLockedToast.classList.remove('show');
+      window.setTimeout(() => this.hubLockedToast.classList.add('hidden'), 300);
+    }, 1800);
+  }
+
   private showCluesHint(text: string): void {
     this.cluesHint.textContent = text;
     this.cluesHint.classList.remove('hidden');
@@ -1350,5 +1444,9 @@ export class UIManager {
     this.engine.onEventFired = null;
     this.engine.onClueAdded = null;
     this.engine.onDeductionFired = null;
+    this.engine.onHubEnter = null;
+    this.engine.onHubUpdate = null;
+    this.engine.onHubLocked = null;
+    this.engine.onHubExit = null;
   }
 }

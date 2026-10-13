@@ -3,7 +3,7 @@
  * 将 YAML-like 脚本解析为指令序列
  */
 
-import type { ScriptCommand, GradeType, WeatherType, TransitionType, RelationDef, EventDef, ClueDef, DeductionDef, ExploreHotspot } from './types';
+import type { ScriptCommand, GradeType, WeatherType, TransitionType, RelationDef, EventDef, ClueDef, DeductionDef, ExploreHotspot, HubNode } from './types';
 
 /**
  * 解析脚本 JSON 为指令序列
@@ -173,6 +173,20 @@ export function parseScript(script: Record<string, unknown>[]): ScriptCommand[] 
           hint: item.hint as string | undefined,
           hotspots: (item.hotspots as ExploreHotspot[]) || [],
         } as ScriptCommand;
+
+      case 'hub':
+        return {
+          type: 'hub',
+          title: item.title as string | undefined,
+          bg: item.bg as string | undefined,
+          time: (item.time as string[]) || [],
+          apPerPhase: (item.apPerPhase as number) ?? 1,
+          onEnd: item.onEnd as string,
+          nodes: (item.nodes as HubNode[]) || [],
+        } as ScriptCommand;
+
+      case 'returnHub':
+        return { type: 'returnHub' } as ScriptCommand;
 
       default:
         throw new Error(`未知指令类型: ${type} (第 ${index} 行)`);

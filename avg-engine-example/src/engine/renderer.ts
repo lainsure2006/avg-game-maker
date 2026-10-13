@@ -790,6 +790,38 @@ export class Renderer {
     }
   }
 
+  /**
+   * 阶段4：渲染枢纽背景。
+   * 把背景图 cover 铺满画布，叠加暗色渐变遮罩（让 DOM 覆盖层上的节点文字清晰可读）。
+   */
+  renderHubBg(bgImage: HTMLImageElement): void {
+    const ctx = this.ctx;
+    const W = this.width;
+    const H = this.height;
+    ctx.clearRect(0, 0, W, H);
+    if (bgImage.width > 0 && bgImage.height > 0) {
+      this.drawImageCover(ctx, bgImage, 1);
+    } else {
+      ctx.fillStyle = '#0b0e14';
+      ctx.fillRect(0, 0, W, H);
+    }
+    // 暗色渐变遮罩（上深下更深，中心略亮，聚焦节点网格）
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(6, 9, 16, 0.78)');
+    g.addColorStop(0.5, 'rgba(6, 9, 16, 0.62)');
+    g.addColorStop(1, 'rgba(6, 9, 16, 0.86)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  /** 清空画布为指定纯色（枢纽无背景图时兜底） */
+  clearToColor(color: string): void {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.width, this.height);
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, this.width, this.height);
+  }
+
   /** 渲染首页背景（带暗色遮罩） */
   renderTitleBackground(image: HTMLImageElement | null): void {
     const ctx = this.ctx;
