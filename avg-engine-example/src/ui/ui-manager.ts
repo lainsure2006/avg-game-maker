@@ -69,6 +69,10 @@ export class UIManager {
   private btnExploreRight: HTMLElement;
   private btnExploreEnd: HTMLElement;
   private exploreHintText: string = '';
+  // 阶段5：电影宽银幕黑边 + 探索拾取金色光环
+  private cinematicBars: HTMLElement;
+  private pickupFlash: HTMLElement;
+  private pickupFlashTimer: number = 0;
 
   // 阶段4：场景自选枢纽覆盖层
   private hubOverlay: HTMLElement;
@@ -168,6 +172,8 @@ export class UIManager {
 
     // 阶段3：探索模式 HUD
     this.exploreHud = document.getElementById('explore-hud')!;
+    this.cinematicBars = document.getElementById('cinematic-bars')!;
+    this.pickupFlash = document.getElementById('pickup-flash')!;
     this.exploreHint = document.getElementById('explore-hint')!;
     this.exploreHintTextEl = document.getElementById('explore-hint-text')!;
     this.btnExploreLeft = document.getElementById('btn-explore-arrow-left')!;
@@ -275,6 +281,12 @@ export class UIManager {
     this.engine.onHubUpdate = (phase, apLeft, totalPhases) => this.updateHubStatus(phase, apLeft, totalPhases);
     this.engine.onHubLocked = (msg) => this.showHubLocked(msg);
     this.engine.onHubExit = () => this.hideHub();
+    // 阶段5：电影宽银幕开关 → 显示/隐藏上下黑边
+    this.engine.onCinematic = (on: boolean) => {
+      this.cinematicBars.classList.toggle('hidden', !on);
+    };
+    // 阶段5：探索拾取 → 播放金色光环
+    this.engine.onPickupFlash = () => this.showPickupFlash();
 
     // 首页状态变化
     this.engine.onTitleScreenChange = (visible) => {
@@ -1284,6 +1296,18 @@ export class UIManager {
     this.clueDetailModal.classList.add('hidden');
   }
 
+  // ========== 阶段5：探索拾取金色光环 ==========
+  private showPickupFlash(): void {
+    if (this.pickupFlashTimer) window.clearTimeout(this.pickupFlashTimer);
+    this.pickupFlash.classList.remove('hidden', 'play');
+    // 强制重排以重启动画
+    void this.pickupFlash.offsetWidth;
+    this.pickupFlash.classList.add('play');
+    this.pickupFlashTimer = window.setTimeout(() => {
+      this.pickupFlash.classList.add('hidden');
+    }, 650);
+  }
+
   // ========== 阶段3：探索模式 HUD 控制 ==========
   private showExploreHud(info: { hint?: string; total: number }): void {
     this.exploreHintText = info.hint ?? '拖动浏览场景，点击发光处寻找线索';
@@ -1457,5 +1481,8 @@ export class UIManager {
     this.engine.onHubUpdate = null;
     this.engine.onHubLocked = null;
     this.engine.onHubExit = null;
+    this.engine.onCinematic = null;
+    this.engine.onPickupFlash = null;
+    if (this.pickupFlashTimer) window.clearTimeout(this.pickupFlashTimer);
   }
 }

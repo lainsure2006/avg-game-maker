@@ -181,6 +181,8 @@ export class Renderer {
   private zoomTime: number = 0;
   private zoomTotal: number = 1;
   private zoomActive: boolean = false;
+  // 阶段5：电影宽银幕（放大背景 Ken Burns 缓推振幅）
+  private cinematicMode: boolean = false;
 
   // 当前渲染状态
   private bgImage: HTMLImageElement | null = null;
@@ -228,6 +230,11 @@ export class Renderer {
   /** 获取 Canvas 2D 上下文 */
   getContext(): CanvasRenderingContext2D {
     return this.ctx;
+  }
+
+  /** 阶段5：开关电影宽银幕（放大背景缓推振幅，黑边由 UI 层负责） */
+  setCinematic(on: boolean): void {
+    this.cinematicMode = on;
   }
 
   /** 设置背景 */
@@ -451,9 +458,11 @@ export class Renderer {
   /** 绘制背景并叠加 Ken Burns 缓推（缓慢缩放+漂移，营造电影感） */
   private drawBackgroundImage(ctx: CanvasRenderingContext2D, img: HTMLImageElement, alpha: number): void {
     ctx.save();
-    const s = 1 + 0.05 * (0.5 - 0.5 * Math.cos(this.kbT * 0.06)); // 1.0 -> 1.05 缓慢呼吸
-    const ox = Math.sin(this.kbT * 0.04) * this.width * 0.012;
-    const oy = Math.cos(this.kbT * 0.03) * this.height * 0.01;
+    // 阶段5：电影模式下放大缓推振幅（更明显的“推镜”感）
+    const amp = this.cinematicMode ? 2.4 : 1;
+    const s = 1 + 0.05 * amp * (0.5 - 0.5 * Math.cos(this.kbT * 0.06)); // 1.0 -> 1.05(常规)/1.12(电影) 缓慢呼吸
+    const ox = Math.sin(this.kbT * 0.04) * this.width * 0.012 * amp;
+    const oy = Math.cos(this.kbT * 0.03) * this.height * 0.01 * amp;
     ctx.translate(this.width / 2 + ox, this.height / 2 + oy);
     ctx.scale(s, s);
     ctx.translate(-this.width / 2, -this.height / 2);
@@ -620,7 +629,8 @@ export class Renderer {
     xRatio: number,
     maxWRatio: number,
     alpha: number = 1,
-    breathPhase: number = 0
+    breathPhase: number = 0,
+    popScale: number = 1
   ): void {
     const ctx = this.ctx;
 
@@ -636,15 +646,19 @@ export class Renderer {
     }
     const drawH = image.height * scale;
 
+    // 阶段5：入场缩放弹入（popScale 由引擎按入场进度传入；1=正常，过冲期略>1）
+    const popW = drawW * popScale;
+    const popH = drawH * popScale;
+
     // 阶段2：立绘呼吸（极轻微垂直起伏 + 微缩放，使角色“活”起来）
     const t = this.elapsed * 1.6 + breathPhase;
     const breathScale = 1 + Math.sin(t) * 0.006;
     const bob = Math.sin(t) * (this.height * 0.005);
-    const breatheH = drawH * breathScale;
+    const breatheH = popH * breathScale;
     const baseY = this.height + bob;          // 脚底随呼吸轻微上下
     const drawY = baseY - breatheH;
     const posX = xRatio * this.width;
-    const drawX = posX - drawW / 2;
+    const drawX = posX - popW / 2;
 
     ctx.save();
     // 强调 zoom + 震屏（与背景层一致，使整屏演出统一）
@@ -660,7 +674,7 @@ export class Renderer {
       ctx.translate((Math.random() * 2 - 1) * m, (Math.random() * 2 - 1) * m);
     }
     ctx.globalAlpha = alpha;
-    ctx.drawImage(image, drawX, drawY, drawW, breatheH);
+    ctx.drawImage(image, drawX, drawY, popW, breatheH);
     ctx.globalAlpha = 1;
     ctx.restore();
   }

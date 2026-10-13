@@ -57,6 +57,7 @@ export type ScriptCommand =
   | { type: 'explore'; bg: string; widthRatio?: number; hint?: string; hotspots: ExploreHotspot[] }  // 阶段3：探索模式（宽图左右平移，点击热区收集线索/弹出道具）
   | { type: 'hub'; title?: string; bg?: string; time: string[]; apPerPhase?: number; onEnd: string; nodes: HubNode[] }  // 阶段4：场景自选枢纽（地图节点 + 时间阶段 + 行动点）
   | { type: 'returnHub' }  // 阶段4：场景结束后回到枢纽（消耗已计入进入节点时）
+  | { type: 'cinematic'; on: boolean }  // 阶段5：电影宽银幕开关（显示黑边 + 加强背景缓推）
   | { type: 'end' };
 
 export interface ChoiceItem {

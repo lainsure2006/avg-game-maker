@@ -44,6 +44,13 @@ function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
+/** 阶段5：入场回弹缓动（带轻微过冲，营造“弹入”手感；t=0→0, t=1→1, 中段过冲>1） */
+function easeOutBack(t: number): number {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+
 /** 入场滑入方向：左→-1，右→+1，中→0（仅淡入） */
 function dirFromPos(p: string): number {
   if (p === 'left') return -1;
@@ -86,6 +93,7 @@ export class GameEngine {
   private exploreOffset: number = 0;     // 当前视口左缘在宽图上的位置（单位：视口宽）
   private exploreWidthRatio: number = 2;
   private exploreFound: Set<string> = new Set();
+  private cinematicOn: boolean = false;   // 阶段5：电影宽银幕开关状态
   private waitingForExplore: boolean = false;
 
   // 场景自选枢纽（阶段4）：时间阶段 + 行动点（日程表模型）
@@ -179,6 +187,10 @@ export class GameEngine {
   onHubLocked: ((msg: string) => void) | null = null;
   /** 退出枢纽（UI 据此隐藏覆盖层） */
   onHubExit: (() => void) | null = null;
+  /** 阶段5：电影宽银幕开关（UI 据此显示/隐藏上下黑边） */
+  onCinematic: ((on: boolean) => void) | null = null;
+  /** 阶段5：探索拾取线索时的闪光回调（UI 据此播放金色光环） */
+  onPickupFlash: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -295,6 +307,10 @@ export class GameEngine {
   private startGameLoop(): void {
     this.running = true;
     this.commandIndex = 0;
+    // 阶段5：开局复位电影宽银幕（避免上一局残留黑边）
+    this.cinematicOn = false;
+    this.renderer.setCinematic(false);
+    this.onCinematic?.(false);
     this.lastTime = performance.now();
     this.loop(this.lastTime);
     // 立即执行第一条指令（否则游戏画面不会初始化）
@@ -481,16 +497,18 @@ export class GameEngine {
       }
 
       // 阶段2：入场/退场动画（滑入 + 淡入 / 滑出 + 淡出）
-      const easeIn = smoothstep(char.enterT ?? 1);
+      // 阶段5：入场缓动改用 easeOutBack（带轻微过冲），并叠加缩放弹入（popScale 0.92→1.05→1.0）
+      const easeIn = easeOutBack(char.enterT ?? 1);
       const easeOut = smoothstep(char.exitT ?? 0);
       const dir = char.enterDir ?? 0;
-      const enterOffset = dir * (1 - easeIn) * SLIDE; // 入场：从侧边滑入
-      const exitOffset = dir * easeOut * SLIDE;        // 退场：向侧边滑出
+      const enterOffset = dir * (1 - easeIn) * SLIDE; // 入场：从侧边滑入（过冲带回弹）
+      const exitOffset = dir * easeOut * SLIDE;        // 退场：向侧边滑出（平滑，不回弹）
       const xRatio = baseX + enterOffset + exitOffset;
-      const alpha = (char.alpha ?? 1) * easeIn * (1 - easeOut);
+      const alpha = (char.alpha ?? 1) * Math.min(1, easeIn) * (1 - easeOut);
+      const popScale = 0.92 + 0.08 * easeIn;           // 入场缩放弹入（最终归 1.0）
 
       const breathPhase = hashPhase(char.id);
-      this.renderer.drawCharacterAuto(img, xRatio, maxWRatio, alpha, breathPhase);
+      this.renderer.drawCharacterAuto(img, xRatio, maxWRatio, alpha, breathPhase, popScale);
     }
   }
 
@@ -740,6 +758,16 @@ export class GameEngine {
         break;
       }
 
+      case 'cinematic': {
+        // 阶段5：电影宽银幕开关（显示黑边 + 加强背景缓推）
+        this.cinematicOn = cmd.on;
+        this.renderer.setCinematic(cmd.on);
+        this.onCinematic?.(cmd.on);
+        this.commandIndex++;
+        this.executeNext();
+        break;
+      }
+
       case 'hub': {
         // 阶段4：场景自选枢纽。先跳过本指令（避免 returnHub 后再次进入），
         // 再进入枢纽并暂停主脚本推进，直到节点跳转 / onEnd 收尾。
@@ -785,6 +813,10 @@ export class GameEngine {
 
       case 'end': {
         this.running = false;
+        // 阶段5：抵达结局时复位电影宽银幕（黑边不残留）
+        this.cinematicOn = false;
+        this.renderer.setCinematic(false);
+        this.onCinematic?.(false);
         // 抵达结局：弹出结局提示（pendingEndingId 由 preceding unlock 指令设置；
         // 若某结局路径漏写 unlock，则传 null 显示通用“剧终”）。
         this.onEndingReached?.(this.pendingEndingId);
@@ -1252,6 +1284,9 @@ export class GameEngine {
       const hh = h.h ?? 0.12;
       if (gx >= h.x - w / 2 && gx <= h.x + w / 2 && gy >= h.y - hh / 2 && gy <= h.y + hh / 2) {
         this.exploreFound.add(h.id);
+        // 阶段5：拾取闪光（画布白光一闪 + UI 金色光环）
+        this.renderer.startEffect('flash', 0.4);
+        this.onPickupFlash?.();
         // 收集线索（角标 +1，登记进笔记本）
         if (h.clue && !this.ownedClues.has(h.clue)) {
           this.ownedClues.add(h.clue);

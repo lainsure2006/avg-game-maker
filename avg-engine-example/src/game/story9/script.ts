@@ -36,9 +36,11 @@ export const script = [
   ]},
 
   // 退出探索后恢复常规剧情
+  { type: 'cinematic', on: true },   // 阶段5：收尾进入电影宽银幕（上下黑边 + 加强缓推）
   { type: 'scene', bg: 'pier_dusk', transition: 'fade' },
   { type: 'char', action: 'show', id: 'gucheng', position: 'left', pose: 'default' },
   { type: 'narration', text: '三样东西到手。它们彼此之间，似乎藏着某种联系……' },
   { type: 'dialog', speaker: '顾承', text: '（顶栏「线索」已经记下你找到的证物，之后可以去推理了。）' },
+  { type: 'cinematic', on: false },  // 阶段5：退出电影宽银幕
   { type: 'end' },
 ];

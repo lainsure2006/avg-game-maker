@@ -71,10 +71,12 @@ export const script: ScriptCommand[] = [
 
   // ===== 收尾 =====
   { type: 'label', id: 'day_end' },
+  { type: 'cinematic', on: true },   // 阶段5：收尾进入电影宽银幕（上下黑边 + 加强缓推）
   { type: 'scene', bg: 'corridor_dark' },
   { type: 'narration', text: '夜色合拢。你今天踏过的每一处，都在记忆里连成一条线。' },
   { type: 'char', action: 'show', id: 'gucheng', position: 'center', pose: 'serious' },
   { type: 'dialog', speaker: '顾承', text: '明天，我们再往下挖。今晚……先活下来。' },
   { type: 'char', action: 'hide', id: 'gucheng' },
+  { type: 'cinematic', on: false },  // 阶段5：退出电影宽银幕
   { type: 'end' },
 ];

@@ -251,14 +251,51 @@ interface HubDef {
 
 ---
 
-## 8. 后续阶段（占位，逐阶段展开 SPEC）
+## 8. 阶段 5 · 动画 / 特效润色（✅ 已实现 · 待实测）
 
-- **阶段5 动画特效**：宽图视差分层、电影宽银幕（16:9 黑边+缓推）、线索拾取闪光、立绘入场弹跳、眨眼/微表情。
-- **阶段6 可选**：QTE（可关）、世界观图鉴 Codex、多周目路线锁 + NG+ 携带好感。
+> 目标：在不改内核的前提下，给对话演出增加「电影感」与「鲜活感」。
+> 三项全部纯 CSS/Canvas（无新素材）；视差分层与眨眼/微表情因需分层素材，**本轮不做**，留待阶段6 后再议。
+
+### 8.1 电影宽银幕（`cinematic` 指令）
+- **新增指令**：`{ type: 'cinematic', on: boolean }` —— 开关电影模式。
+- **行为**：`on=true` 时 UI 在屏幕上下加 **11% 黑边（letterbox）**，且背景的 Ken Burns 缓推振幅放大（1.0× → 2.4×），关键对话/转场更显「推镜」；`on=false` 恢复常规 16:10 视野。
+- **接入**：
+  - `types.ts`：`ScriptCommand` 联合类型加 `cinematic` 分支。
+  - `game-engine.ts`：新增 `onCinematic(on)` 回调 + `cinematicOn` 状态；`executeCommand` 加分支（置状态 + `renderer.setCinematic` + 回调）；`startGameLoop()` 与 `case 'end'` 自动复位（避免黑边卡死）。
+  - `renderer.ts`：新增 `cinematicMode` / `setCinematic()`；`drawBackgroundImage` 在 `cinematicMode` 下放大 KB 缩放/漂移振幅。
+  - `index.html` + `ui-manager.ts` + `main.css`：`#cinematic-bars`（上/下黑边，`.hidden` 默认隐藏，`pointer-events:none`、`z-index:200`）。
+- **作者用法**：在想出电影感的地方写 `{type:'cinematic',on:true}`，收尾前写 `{type:'cinematic',on:false}`。
+
+### 8.2 线索拾取闪光（`flash` + 金色光环）
+- **行为**：探索中点中热区 → ① 画布白光一闪（`renderer.startEffect('flash', 0.4)`，复用既有屏幕特效）；② 屏幕中央泛起**金色光环**（`#pickup-flash` DOM 覆盖层，keyframes 脉冲，`pointer-events:none`）。
+- **接入**：`game-engine.clickExplore` 命中后调用 `renderer.startEffect('flash',0.4)` + `onPickupFlash?.()`；`ui-manager` 绑定 `onPickupFlash` → `showPickupFlash()`（650ms 自动隐）。
+- **道具弹窗升级**：`.avg-item-frame` 加金色发光描边（`box-shadow` 暖金），拾取弹出更有「证物登场」感。
+
+### 8.3 立绘入场弹跳（easeOutBack 回弹 + 缩放弹入）
+- **复用**：引擎已有入场滑入 + 淡入（`enterT`/`exitT`/`smoothstep`），本项把**入场缓动换成 `easeOutBack`**（带轻微过冲），并叠加 **0.92→1.05→1.0 的缩放弹入（popScale）**，使角色「弹」出来而非平铺滑入。
+- **接入**：
+  - `game-engine.ts`：新增 `easeOutBack(t)`；`drawAllCharacters` 入场 `easeIn` 改用 `easeOutBack`，并算 `popScale = 0.92 + 0.08*easeIn` 传入 `drawCharacterAuto`。
+  - `renderer.ts`：`drawCharacterAuto` 加 `popScale = 1` 形参，作用于绘制宽高（绕脚底缩放）。
+- 退场仍用 `smoothstep`（不回弹），保持干净离场。
+
+### 8.4 验收判据
+- [ ] 标题屏选「探索模式示例」→ 探索中点中热区：白光闪 + 金色光环 + 道具弹窗带金边。
+- [ ] 收尾段 `cinematic on` 后：屏幕上下出现黑边、背景明显缓推（比常规更慢更明显）；`cinematic off` 后黑边消失、视野恢复。
+- [ ] 任意 `char show`：角色以「滑入 + 缩放弹入 + 淡入」登场，带轻微回弹；`char hide` 干净滑出。
+- [ ] 走到 `end` 或重开新故事：电影黑边自动消失（不卡死）。
+- [ ] 示例 story9（探索+收尾电影感）、story10（day_end 电影感）从标题屏可进入完整演示。
 
 ---
 
-## 9. 提交约定
+## 9. 阶段 6 · 可选远期（未规划，待阶段5 验收后再定）
+- QTE（可关闭）
+- 世界观图鉴 Codex
+- 多周目路线锁 + NG+ 携带好感
+- **视差分层 / 眨眼微表情**（依赖分层素材，需按 krea2-scene-sheet 规格补前景/背景分层图与眼睛单独层）
+
+---
+
+## 10. 提交约定
 - 每阶段一个 commit，message 前缀 `[阶段N]`。
 - 验证（build + 示例故事实测）通过后才合并进 master 并推送 CNB。
 - 示例故事（story7…）验证满意后可整体删除，不影响正式故事。

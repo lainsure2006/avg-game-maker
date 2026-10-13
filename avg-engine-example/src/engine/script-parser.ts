@@ -188,6 +188,12 @@ export function parseScript(script: Record<string, unknown>[]): ScriptCommand[] 
       case 'returnHub':
         return { type: 'returnHub' } as ScriptCommand;
 
+      case 'cinematic':
+        return {
+          type: 'cinematic',
+          on: (item.on as boolean) ?? true,
+        } as ScriptCommand;
+
       default:
         throw new Error(`未知指令类型: ${type} (第 ${index} 行)`);
     }
