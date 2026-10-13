@@ -47,6 +47,7 @@ export class UIManager {
   private cluesBadge: HTMLElement;
   private cluesFooter: HTMLElement;
   private cluesHint: HTMLElement;
+  private cluesHintTimer: number | null = null;
   private cluesSelected: Set<string> = new Set();
   // 线索详情浮层
   private clueDetailModal: HTMLElement;
@@ -1266,7 +1267,7 @@ export class UIManager {
       // 推理成功：关闭面板；瞬时提示由引擎 onDeductionFired 回调弹
       this.hideClues();
     } else {
-      this.showCluesHint('线索不足以推出结论，再想想组合方式。');
+      this.showCluesHint('什么都没有发生……这些线索的组合似乎推不出什么。');
     }
   }
 
@@ -1366,6 +1367,12 @@ export class UIManager {
   private showCluesHint(text: string): void {
     this.cluesHint.textContent = text;
     this.cluesHint.classList.remove('hidden');
+    // 短暂显示后自动消失，明确是「已处理」的瞬时反馈
+    if (this.cluesHintTimer !== null) window.clearTimeout(this.cluesHintTimer);
+    this.cluesHintTimer = window.setTimeout(() => {
+      this.cluesHint.classList.add('hidden');
+      this.cluesHintTimer = null;
+    }, 2400);
   }
 
   /** 刷新顶栏「线索」角标（已收集线索数量） */
