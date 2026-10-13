@@ -43,15 +43,17 @@ export class UIManager {
   private cluesContent: HTMLElement;
   private btnClues: HTMLElement;
   private btnCluesClose: HTMLElement;
-  private btnCluesReason: HTMLElement;
-  private btnCluesDeduce: HTMLElement;
-  private btnCluesReasonExit: HTMLElement;
+  private btnCluesUse: HTMLElement;
   private cluesBadge: HTMLElement;
-  private cluesFooterRead: HTMLElement;
-  private cluesFooterReason: HTMLElement;
+  private cluesFooter: HTMLElement;
   private cluesHint: HTMLElement;
-  private cluesMode: 'read' | 'reason' = 'read';
   private cluesSelected: Set<string> = new Set();
+  // 线索详情浮层
+  private clueDetailModal: HTMLElement;
+  private clueDetailImg: HTMLElement;
+  private clueDetailName: HTMLElement;
+  private clueDetailDesc: HTMLElement;
+  private btnClueDetailClose: HTMLElement;
 
   private eventToast: HTMLElement;
   private eventToastTimer: number = 0;
@@ -61,7 +63,7 @@ export class UIManager {
   // 阶段3：探索模式 HUD
   private exploreHud: HTMLElement;
   private exploreHint: HTMLElement;
-  private exploreCount: HTMLElement;
+  private exploreHintTextEl: HTMLElement;
   private btnExploreLeft: HTMLElement;
   private btnExploreRight: HTMLElement;
   private btnExploreEnd: HTMLElement;
@@ -153,20 +155,22 @@ export class UIManager {
     this.cluesContent = document.getElementById('clues-content')!;
     this.btnClues = document.getElementById('btn-clues')!;
     this.btnCluesClose = document.getElementById('btn-clues-close')!;
-    this.btnCluesReason = document.getElementById('btn-clues-reason')!;
-    this.btnCluesDeduce = document.getElementById('btn-clues-deduce')!;
-    this.btnCluesReasonExit = document.getElementById('btn-clues-reason-exit')!;
+    this.btnCluesUse = document.getElementById('btn-clues-use')!;
     this.cluesBadge = document.getElementById('clues-badge')!;
-    this.cluesFooterRead = document.getElementById('clues-footer-read')!;
-    this.cluesFooterReason = document.getElementById('clues-footer-reason')!;
+    this.cluesFooter = document.getElementById('clues-footer')!;
     this.cluesHint = document.getElementById('clues-hint')!;
+    this.clueDetailModal = document.getElementById('clue-detail-modal')!;
+    this.clueDetailImg = document.getElementById('clue-detail-img')!;
+    this.clueDetailName = document.getElementById('clue-detail-name')!;
+    this.clueDetailDesc = document.getElementById('clue-detail-desc')!;
+    this.btnClueDetailClose = document.getElementById('btn-clue-detail-close')!;
 
     // 阶段3：探索模式 HUD
     this.exploreHud = document.getElementById('explore-hud')!;
     this.exploreHint = document.getElementById('explore-hint')!;
-    this.exploreCount = document.getElementById('explore-count')!;
-    this.btnExploreLeft = document.getElementById('btn-explore-left')!;
-    this.btnExploreRight = document.getElementById('btn-explore-right')!;
+    this.exploreHintTextEl = document.getElementById('explore-hint-text')!;
+    this.btnExploreLeft = document.getElementById('btn-explore-arrow-left')!;
+    this.btnExploreRight = document.getElementById('btn-explore-arrow-right')!;
     this.btnExploreEnd = document.getElementById('btn-explore-end')!;
 
     // 阶段4：场景自选枢纽覆盖层
@@ -538,17 +542,7 @@ export class UIManager {
       this.hideClues();
     }, { signal: sig });
 
-    this.btnCluesReason.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.enterReasonMode();
-    }, { signal: sig });
-
-    this.btnCluesReasonExit.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.exitReasonMode();
-    }, { signal: sig });
-
-    this.btnCluesDeduce.addEventListener('click', (e) => {
+    this.btnCluesUse.addEventListener('click', (e) => {
       e.stopPropagation();
       this.doDeduce();
     }, { signal: sig });
@@ -557,6 +551,15 @@ export class UIManager {
     document.getElementById('btn-story-select-close')?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.hideStorySelect();
+    }, { signal: sig });
+
+    // 线索详情浮层：关闭按钮 + 点击背景关闭
+    this.btnClueDetailClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.closeClueDetail();
+    }, { signal: sig });
+    this.clueDetailModal.addEventListener('click', (e) => {
+      if (e.target === this.clueDetailModal) this.closeClueDetail();
     }, { signal: sig });
 
     // 键盘控制
@@ -1196,7 +1199,6 @@ export class UIManager {
   }
 
   private showClues(): void {
-    this.cluesMode = 'read';
     this.cluesSelected.clear();
     this.updateCluesBadge();
     this.renderClues();
@@ -1207,7 +1209,7 @@ export class UIManager {
     this.cluesPanel.classList.add('hidden');
   }
 
-  /** 渲染线索列表（read 模式=只读卡片；reason 模式=可点选卡片） */
+  /** 渲染线索卡片：始终可点选；卡片点击放大看详情，选择方块点击仅切换选择 */
   private renderClues(): void {
     this.cluesContent.innerHTML = '';
     const clues = this.engine.getClues();
@@ -1220,46 +1222,32 @@ export class UIManager {
     } else {
       for (const c of clues) {
         const card = document.createElement('div');
-        card.className = 'clue-card' + (this.cluesMode === 'reason' ? ' selectable' : '');
-        const selected = this.cluesMode === 'reason' && this.cluesSelected.has(c.id);
+        card.className = 'clue-card selectable';
+        const selected = this.cluesSelected.has(c.id);
         if (selected) card.classList.add('selected');
 
         const iconHtml = c.icon
           ? `<img class="clue-icon" src="${this.escapeHtml(c.icon)}" alt="" />`
           : `<div class="clue-icon"></div>`;
-        const checkHtml = this.cluesMode === 'reason'
-          ? `<div class="clue-check">${selected ? '✓' : ''}</div>`
-          : '';
-        card.innerHTML = `${checkHtml}${iconHtml}<div class="clue-body"><div class="clue-name">${this.escapeHtml(c.name)}</div><div class="clue-desc">${this.escapeHtml(c.desc)}</div></div>`;
+        // 选择方块：默认隐藏，hover 浮现，selected 时显示 ✓
+        const checkHtml = `<div class="clue-check">${selected ? '✓' : ''}</div>`;
+        card.innerHTML = `${checkHtml}${iconHtml}<div class="clue-body"><div class="clue-name">${this.escapeHtml(c.name)}</div></div>`;
 
-        if (this.cluesMode === 'reason') {
-          card.addEventListener('click', () => this.toggleClueSelect(c.id));
-        }
+        // 点击卡片 → 放大查看详情
+        card.addEventListener('click', () => this.openClueDetail(c));
+        // 点击选择方块 → 仅切换选择（不打开详情）
+        const check = card.querySelector('.clue-check') as HTMLElement;
+        check.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleClueSelect(c.id);
+        });
         this.cluesContent.appendChild(card);
       }
     }
 
-    // 底部操作栏随模式切换
-    if (this.cluesMode === 'read') {
-      this.cluesFooterRead.classList.remove('hidden');
-      this.cluesFooterReason.classList.add('hidden');
-    } else {
-      this.cluesFooterRead.classList.add('hidden');
-      this.cluesFooterReason.classList.remove('hidden');
-    }
+    // 底部「使用」按钮始终显示
+    this.cluesFooter.classList.remove('hidden');
     this.cluesHint.classList.add('hidden');
-  }
-
-  private enterReasonMode(): void {
-    this.cluesMode = 'reason';
-    this.cluesSelected.clear();
-    this.renderClues();
-  }
-
-  private exitReasonMode(): void {
-    this.cluesMode = 'read';
-    this.cluesSelected.clear();
-    this.renderClues();
   }
 
   private toggleClueSelect(id: string): void {
@@ -1270,7 +1258,7 @@ export class UIManager {
 
   private doDeduce(): void {
     if (this.cluesSelected.size === 0) {
-      this.showCluesHint('请先选择若干线索，再点「推理」。');
+      this.showCluesHint('请先在卡片上点选若干线索，再点「使用」。');
       return;
     }
     const fired = this.engine.tryDeduce(Array.from(this.cluesSelected));
@@ -1282,20 +1270,32 @@ export class UIManager {
     }
   }
 
+  /** 打开线索详情（放大卡片：大图 + 名称 + 描述） */
+  private openClueDetail(c: ClueDef): void {
+    if (c.icon) this.clueDetailImg.setAttribute('src', c.icon);
+    else this.clueDetailImg.removeAttribute('src');
+    this.clueDetailName.textContent = c.name;
+    this.clueDetailDesc.textContent = c.desc;
+    this.clueDetailModal.classList.remove('hidden');
+  }
+
+  private closeClueDetail(): void {
+    this.clueDetailModal.classList.add('hidden');
+  }
+
   // ========== 阶段3：探索模式 HUD 控制 ==========
   private showExploreHud(info: { hint?: string; total: number }): void {
     this.exploreHintText = info.hint ?? '拖动浏览场景，点击发光处寻找线索';
-    this.exploreHint.textContent = this.exploreHintText;
-    this.updateExploreCount(0, info.total);
+    this.exploreHintTextEl.textContent = this.exploreHintText;
     this.exploreHud.classList.remove('hidden');
     this.dialogBox.classList.add('hidden'); // 探索时隐藏对话框，避免误触推进
   }
 
   private updateExploreCount(found: number, total: number, label?: string): void {
-    this.exploreCount.textContent = `线索 ${found}/${total}`;
+    // 不再常驻显示「线索 X/Y」（避免压住顶部菜单），仅以短暂提示反馈已发现的线索
     if (label) {
-      this.exploreHint.textContent = `发现：${label}`;
-      window.setTimeout(() => { this.exploreHint.textContent = this.exploreHintText; }, 1600);
+      this.exploreHintTextEl.textContent = `发现：${label}`;
+      window.setTimeout(() => { this.exploreHintTextEl.textContent = this.exploreHintText; }, 1600);
     }
   }
 
@@ -1304,8 +1304,8 @@ export class UIManager {
   }
 
   private showExploreNudge(): void {
-    this.exploreHint.textContent = '（这里似乎什么也没有…）';
-    window.setTimeout(() => { this.exploreHint.textContent = this.exploreHintText; }, 1200);
+    this.exploreHintTextEl.textContent = '（这里似乎什么也没有…）';
+    window.setTimeout(() => { this.exploreHintTextEl.textContent = this.exploreHintText; }, 1200);
   }
 
   // ========== 阶段4：场景自选枢纽覆盖层 ==========

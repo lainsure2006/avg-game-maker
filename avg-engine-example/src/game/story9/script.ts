@@ -18,9 +18,9 @@
  */
 export const script = [
   // 线索声明（进入探索点中后由引擎登记进「线索笔记本」）
-  { type: 'clue', id: 'c_key',   name: '锈蚀的铜钥匙', desc: '挂在系缆桩的铁环上，齿纹很旧，柄上刻着模糊编号：7-13。' },
-  { type: 'clue', id: 'c_note',  name: '压舱箱里的信', desc: '没有署名，只写：「别信穿白大褂的。7-13 才是真的。」字迹与病历签字一致。' },
-  { type: 'clue', id: 'c_photo', name: '褪色的船票',   desc: '一张泛黄的单程船票，背面写着日期——正是医院关闭前一天。' },
+  { type: 'clue', id: 'c_key',   name: '锈蚀的铜钥匙', desc: '挂在系缆桩的铁环上，齿纹很旧，柄上刻着模糊编号：7-13。', icon: '/images/items/prop_key.svg' },
+  { type: 'clue', id: 'c_note',  name: '压舱箱里的信', desc: '没有署名，只写：「别信穿白大褂的。7-13 才是真的。」字迹与病历签字一致。', icon: '/images/items/prop_note.svg' },
+  { type: 'clue', id: 'c_photo', name: '褪色的船票',   desc: '一张泛黄的单程船票，背面写着日期——正是医院关闭前一天。', icon: '/images/items/prop_photo.svg' },
 
   // 开场
   { type: 'scene', bg: 'pier_dusk', transition: 'fade' },

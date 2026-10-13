@@ -158,26 +158,30 @@
           <button id="btn-clues-close">✕</button>
         </div>
         <div id="clues-content" class="clues-content"></div>
-        <div class="clues-footer" id="clues-footer-read">
-          <button id="btn-clues-reason">进入推理</button>
-        </div>
-        <div class="clues-footer hidden" id="clues-footer-reason">
-          <button id="btn-clues-deduce" class="primary">推理</button>
-          <button id="btn-clues-reason-exit">退出推理</button>
+        <div class="clues-footer" id="clues-footer">
+          <button id="btn-clues-use" class="primary">使用</button>
         </div>
         <div id="clues-hint" class="clues-hint hidden"></div>
       </div>
+      <!-- 线索详情浮层（点击卡片放大查看） -->
+      <div id="clue-detail-modal" class="hidden">
+        <div id="clue-detail-card">
+          <button id="btn-clue-detail-close" class="clue-detail-close" title="关闭">✕</button>
+          <img id="clue-detail-img" class="clue-detail-img" src="" alt="" />
+          <h3 id="clue-detail-name" class="clue-detail-name"></h3>
+          <p id="clue-detail-desc" class="clue-detail-desc"></p>
+        </div>
+      </div>
       <!-- 养成事件 / 推理触发提示（阶段1/2 共用） -->
       <div id="event-toast" class="hidden"></div>
-      <!-- 阶段3：探索模式 HUD（拖拽平移 + 点击热区 + 结束） -->
+      <!-- 阶段3：探索模式 HUD（拖拽平移 + 点击热区 + 退出） -->
       <div id="explore-hud" class="hidden">
-        <div id="explore-hint" class="explore-hint"></div>
-        <div id="explore-count" class="explore-count"></div>
-        <div id="explore-controls" class="explore-controls">
-          <button id="btn-explore-left" title="向左看">◀</button>
-          <button id="btn-explore-end" class="primary">结束探索</button>
-          <button id="btn-explore-right" title="向右看">▶</button>
+        <div id="explore-hint" class="explore-hint">
+          <span id="explore-hint-text"></span>
+          <button id="btn-explore-end" class="explore-end-link" title="退出探索">结束探索 ✕</button>
         </div>
+        <button id="btn-explore-arrow-left" class="explore-arrow explore-arrow-left" title="向左看">‹</button>
+        <button id="btn-explore-arrow-right" class="explore-arrow explore-arrow-right" title="向右看">›</button>
       </div>
       <!-- 阶段4：场景自选枢纽覆盖层（节点地图 + 时间/行动点） -->
       <div id="hub-overlay" class="hidden">

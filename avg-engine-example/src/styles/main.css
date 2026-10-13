@@ -1294,16 +1294,23 @@ body {
   height: 22px;
   flex: 0 0 22px;
   border-radius: 6px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   color: #fff;
   margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.clue-card:hover .clue-check {
+  opacity: 1;
 }
 
 .clue-card.selected .clue-check {
+  opacity: 1;
   background: rgba(140, 200, 255, 0.9);
   border-color: rgba(140, 200, 255, 0.9);
 }
@@ -1342,6 +1349,74 @@ body {
 .clues-footer button.primary {
   background: linear-gradient(160deg, rgba(90, 130, 210, 0.9), rgba(60, 90, 170, 0.92));
   border-color: rgba(150, 190, 250, 0.6);
+}
+
+/* 线索详情浮层（点击卡片放大查看） */
+#clue-detail-modal {
+  position: absolute;
+  inset: 0;
+  width: 1280px;
+  height: 720px;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+#clue-detail-modal.hidden { display: none; }
+
+#clue-detail-card {
+  position: relative;
+  width: 460px;
+  background: linear-gradient(160deg, rgba(40, 46, 70, 0.98), rgba(22, 24, 40, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  padding: 30px 32px 34px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  text-align: center;
+}
+
+.clue-detail-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255,255,255,0.06);
+  color: #eaf2ff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.clue-detail-close:hover { background: rgba(255, 255, 255, 0.16); }
+
+.clue-detail-img {
+  width: 180px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 14px;
+  margin: 6px auto 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  display: block;
+}
+
+.clue-detail-name {
+  font-size: 20px;
+  color: #fff;
+  letter-spacing: 1px;
+  margin: 0 0 12px;
+}
+
+.clue-detail-desc {
+  font-size: 14px;
+  color: rgba(200, 210, 235, 0.88);
+  line-height: 1.7;
+  margin: 0;
+  text-align: left;
 }
 
 .clue-hint {
@@ -1393,60 +1468,64 @@ body {
   top: 18px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
   background: rgba(0, 0, 0, 0.55);
   color: #ffe6a8;
   border: 1px solid rgba(255, 230, 168, 0.35);
-  padding: 8px 18px;
+  padding: 8px 16px;
   border-radius: 20px;
   font-size: 15px;
   letter-spacing: 1px;
   white-space: nowrap;
 }
 
-.explore-count {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #cfe8ff;
-  border: 1px solid rgba(255,255,255,0.2);
-  padding: 6px 14px;
-  border-radius: 16px;
-  font-size: 15px;
-}
-
-.explore-controls {
-  position: absolute;
-  bottom: 22px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.explore-controls button {
-  background: rgba(0,0,0,0.6);
-  color: #eee;
-  border: 1px solid rgba(255,255,255,0.25);
-  padding: 10px 22px;
-  font-size: 16px;
-  border-radius: 8px;
+.explore-end-link {
+  background: transparent;
+  border: 1px solid rgba(255, 230, 168, 0.45);
+  color: #ffe6a8;
+  font-size: 13px;
+  padding: 3px 12px;
+  border-radius: 14px;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 
-.explore-controls button:hover {
-  background: rgba(0,0,0,0.8);
+.explore-end-link:hover {
+  background: rgba(255, 230, 168, 0.15);
   color: #fff;
-  border-color: rgba(255,255,255,0.5);
 }
 
-.explore-controls button.primary {
-  background: rgba(80, 140, 220, 0.7);
-  border-color: rgba(120, 170, 230, 0.9);
+/* 左右两侧垂直居中的半透明提示箭头 */
+.explore-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  font-size: 40px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
+
+.explore-arrow:hover {
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.explore-arrow-left { left: 12px; }
+.explore-arrow-right { right: 12px; }
 
 /* ========== 场景自选枢纽覆盖层（阶段4） ========== */
 #hub-overlay {
