@@ -1294,6 +1294,11 @@ export class GameEngine {
     return this.waitingForHub;
   }
 
+  /** 将 manifest 背景键解析为完整 URL（hub 节点背景图用） */
+  backgroundUrl(key?: string): string | undefined {
+    return key ? this.manifest?.backgrounds[key] : undefined;
+  }
+
   /** 重新进入枢纽（读档恢复，或场景 returnHub 后回到枢纽） */
   private reenterHub(): void {
     if (!this.hubDef) return;

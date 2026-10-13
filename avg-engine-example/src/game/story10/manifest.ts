@@ -9,6 +9,9 @@ export const manifest: AssetManifest = {
   backgrounds: {
     corridor_dark: '/images/bg/jianmo/bg_corridor_dark.png',
     hub_bg: '/images/bg/hub_bg.svg',
+    ward: '/images/bg/jianmo/bg_ward.png',
+    archive: '/images/bg/jianmo/bg_archive.png',
+    courtyard: '/images/bg/jianmo/bg_courtyard.png',
   },
   sprites: {
     gucheng: {

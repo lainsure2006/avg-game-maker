@@ -1327,6 +1327,8 @@ export class UIManager {
       const card = document.createElement('div');
       card.className = 'hub-node' + (locked ? ' locked' : '');
       card.dataset.nodeId = node.id;
+      const bgUrl = node.bg ? this.engine.backgroundUrl(node.bg) : undefined;
+      if (bgUrl) card.style.backgroundImage = `url("${bgUrl}")`;
       card.innerHTML = `
         <div class="hub-node-icon">${locked ? '🔒' : '📍'}</div>
         <div class="hub-node-label">${this.escapeHtml(node.label)}</div>

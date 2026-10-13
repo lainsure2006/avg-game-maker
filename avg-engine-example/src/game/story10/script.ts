@@ -29,10 +29,10 @@ export const script: ScriptCommand[] = [
     apPerPhase: 1,
     onEnd: 'day_end',
     nodes: [
-      { id: 'ward', label: '病房', jump: 'sc_ward' },
-      { id: 'corridor', label: '走廊', jump: 'sc_corridor' },
-      { id: 'archive', label: '档案室', requires: 'v_ward_done == 1', locked_msg: '先去病房找到线索', jump: 'sc_archive' },
-      { id: 'court', label: '庭院', jump: 'sc_court' },
+      { id: 'ward', label: '病房', bg: 'ward', jump: 'sc_ward' },
+      { id: 'corridor', label: '走廊', bg: 'corridor_dark', jump: 'sc_corridor' },
+      { id: 'archive', label: '档案室', bg: 'archive', requires: 'v_ward_done == 1', locked_msg: '先去病房找到线索', jump: 'sc_archive' },
+      { id: 'court', label: '庭院', bg: 'courtyard', jump: 'sc_court' },
     ],
   },
 
