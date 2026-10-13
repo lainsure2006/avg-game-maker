@@ -1386,6 +1386,7 @@ body {
   z-index: 150;
 }
 #explore-hud button { pointer-events: auto; }
+#explore-hud.hidden { display: none; }   /* 阶段3 修复：默认隐藏，仅进入探索时显示 */
 
 .explore-hint {
   position: absolute;
@@ -1460,6 +1461,7 @@ body {
   justify-content: center;
 }
 #hub-overlay > * { pointer-events: auto; }
+#hub-overlay.hidden { display: none; }   /* 阶段4 修复：默认隐藏，仅进入枢纽时显示 */
 
 #hub-panel {
   width: 880px;
