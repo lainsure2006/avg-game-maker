@@ -1105,8 +1105,13 @@ export class GameEngine {
             this.waitingForChoice = false;
             this.onChoicesHide?.();
           }
-          this.commandIndex = idx;
-          this.executeNext();
+          // 游戏已结束（running=false，如已抵达 end）时不接受推理跳转：
+          // 避免结局后误触推理静默改 commandIndex 导致画面/状态矛盾。
+          // 正常流程（running=true）才执行跳转推进。
+          if (this.running) {
+            this.commandIndex = idx;
+            this.executeNext();
+          }
         }
       }
       return d;
