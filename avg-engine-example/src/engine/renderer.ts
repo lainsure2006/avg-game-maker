@@ -694,6 +694,102 @@ export class Renderer {
     return this.canvas.toDataURL('image/jpeg', 0.5);
   }
 
+  /**
+   * 阶段3：渲染探索宽图
+   * - 把整图 cover 到「widthRatio×视口宽 × 视口高」的宽画布，再裁切出当前视口窗口（按 offset 平移）；
+   * - 绘制热区：未发现的画脉动微光点（引导玩家寻找），已发现的画高亮环 + ✓；
+   * - 底部画一条拖动范围指示条。
+   * 坐标系说明：热区 x 归一化到「整张宽图宽度」，y 归一化到视口高度。
+   */
+  renderExplore(
+    bgImage: HTMLImageElement,
+    offset: number,
+    widthRatio: number,
+    hotspots: { id: string; x: number; y: number; w?: number; h?: number }[],
+    found: Set<string>,
+  ): void {
+    const ctx = this.ctx;
+    const W = this.width;
+    const H = this.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // —— 1) 裁切绘制宽图 ——
+    if (bgImage.width > 0 && bgImage.height > 0) {
+      const wideW = widthRatio * W;
+      const wideH = H;
+      const imgRatio = bgImage.width / bgImage.height;
+      const wideRatio = wideW / wideH;
+      let dw: number, dh: number, dx: number, dy: number;
+      if (imgRatio > wideRatio) {
+        dh = wideH; dw = wideH * imgRatio; dx = (wideW - dw) / 2; dy = 0;
+      } else {
+        dw = wideW; dh = wideW / imgRatio; dx = 0; dy = (wideH - dh) / 2;
+      }
+      const sx = (offset * W - dx) * (bgImage.width / dw);
+      const sy = (0 - dy) * (bgImage.height / dh);
+      const sw = W * (bgImage.width / dw);
+      const sh = H * (bgImage.height / dh);
+      ctx.drawImage(bgImage, sx, sy, sw, sh, 0, 0, W, H);
+    } else {
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // 暗角，聚焦中央
+    const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.78);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(0,0,0,0.5)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, W, H);
+
+    // —— 2) 热区标记 ——
+    const t = performance.now() / 1000;
+    for (const h of hotspots) {
+      const screenXNorm = h.x * widthRatio - offset; // 视口归一化 x
+      if (screenXNorm < -0.12 || screenXNorm > 1.12) continue; // 不在视口内
+      const px = screenXNorm * W;
+      const py = h.y * H;
+      const isFound = found.has(h.id);
+      const pulse = 0.5 + 0.5 * Math.sin(t * 2.2 + h.x * 10);
+      if (isFound) {
+        ctx.beginPath();
+        ctx.arc(px, py, 22, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(120, 220, 160, 0.22)';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(150, 240, 180, 0.95)';
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(150, 240, 180, 0.95)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(px - 9, py); ctx.lineTo(px - 2, py + 8); ctx.lineTo(px + 10, py - 9);
+        ctx.stroke();
+      } else {
+        const r = 14 + pulse * 6;
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 220, 120, ${0.12 + pulse * 0.18})`;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = `rgba(255, 220, 120, ${0.5 + pulse * 0.4})`;
+        ctx.stroke();
+      }
+    }
+
+    // —— 3) 底部拖动范围指示条 ——
+    if (widthRatio > 1.001) {
+      const barW = W * 0.5;
+      const barX = (W - barW) / 2;
+      const barY = H - 26;
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillRect(barX, barY, barW, 4);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      const handleW = barW / widthRatio;
+      const handleX = barX + offset * (barW - handleW);
+      ctx.fillRect(handleX, barY - 3, handleW, 10);
+    }
+  }
+
   /** 渲染首页背景（带暗色遮罩） */
   renderTitleBackground(image: HTMLImageElement | null): void {
     const ctx = this.ctx;

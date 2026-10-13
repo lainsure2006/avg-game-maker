@@ -18,6 +18,9 @@ import type {
   EventDef,
   ClueDef,
   DeductionDef,
+  ExploreHotspot,
+  ExploreDef,
+  ExploreInfo,
 } from './types';
 import { Renderer } from './renderer';
 import { VariableSystem } from './variables';
@@ -73,6 +76,14 @@ export class GameEngine {
   private clueDefs: Map<string, ClueDef> = new Map();
   private ownedClues: Set<string> = new Set();
   private deductionList: DeductionDef[] = [];
+
+  // 探索系统（阶段3）：宽图平移 + 热区点击
+  private exploreDef: ExploreDef | null = null;
+  private exploreBgImage: HTMLImageElement | null = null;
+  private exploreOffset: number = 0;     // 当前视口左缘在宽图上的位置（单位：视口宽）
+  private exploreWidthRatio: number = 2;
+  private exploreFound: Set<string> = new Set();
+  private waitingForExplore: boolean = false;
 
   // 状态
   private characters: Map<string, CharacterState> = new Map();
@@ -143,6 +154,12 @@ export class GameEngine {
   onClueAdded: ((clue: ClueDef) => void) | null = null;
   /** 推理成功（tryDeduce 命中）；UI 据此弹瞬时提示 */
   onDeductionFired: ((id: string, toast?: string) => void) | null = null;
+  /** 进入探索模式（UI 据此显示 HUD） */
+  onExploreEnter: ((info: ExploreInfo) => void) | null = null;
+  /** 探索中命中热区（UI 刷新计数/提示） */
+  onExploreFound: ((found: number, total: number, label?: string) => void) | null = null;
+  /** 退出探索模式（UI 据此隐藏 HUD） */
+  onExploreExit: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -333,10 +350,17 @@ export class GameEngine {
       // 首页渲染
       this.renderTitleScreen();
     } else {
-      this.renderer.update(dt);
-      this.update(dt);
-      this.renderer.render(this.characters, this.settings.fontSize);
-      this.drawAllCharacters();
+      if (this.waitingForExplore && this.exploreBgImage) {
+        this.renderer.renderExplore(
+          this.exploreBgImage, this.exploreOffset, this.exploreWidthRatio,
+          this.exploreDef!.hotspots, this.exploreFound,
+        );
+      } else {
+        this.renderer.update(dt);
+        this.update(dt);
+        this.renderer.render(this.characters, this.settings.fontSize);
+        this.drawAllCharacters();
+      }
     }
 
     this.rafId = requestAnimationFrame(this.loop);
@@ -669,6 +693,14 @@ export class GameEngine {
         this.commandIndex++;
         this.executeNext();
         break;
+
+      case 'explore': {
+        // 探索模式：先跳过本指令（避免 exit 后再次进入），再进入探索并暂停主脚本推进，
+        // 直到 UI「结束探索」调用 exitExplore → executeNext 才从后续指令继续。
+        this.commandIndex++;
+        this.enterExplore(cmd);
+        break;
+      }
 
       case 'wait': {
         this.waitTimer = cmd.duration;
@@ -1117,6 +1149,68 @@ export class GameEngine {
       return d;
     }
     return null;
+  }
+
+  // ========== 阶段3：探索模式 ==========
+  /** 进入探索模式（由 `explore` 指令调用；暂停脚本直到 exitExplore） */
+  private enterExplore(def: ExploreDef): void {
+    this.exploreDef = def;
+    this.exploreWidthRatio = def.widthRatio ?? 2;
+    this.exploreOffset = 0;
+    this.exploreFound.clear();
+    const url = this.manifest?.backgrounds[def.bg];
+    this.exploreBgImage = url ? (this.assets.getImage(url) ?? null) : null;
+    this.waitingForExplore = true;
+    this.onExploreEnter?.({ hint: def.hint, total: def.hotspots.length });
+  }
+
+  /** 是否处于探索模式（供 UI 判断输入路由） */
+  isExploring(): boolean {
+    return this.waitingForExplore;
+  }
+
+  /** 退出探索模式并继续脚本（由 UI「结束探索」按钮调用） */
+  exitExplore(): void {
+    if (!this.waitingForExplore) return;
+    this.waitingForExplore = false;
+    this.onExploreExit?.();
+    this.executeNext();
+  }
+
+  /** 平移视角（deltaRatio 单位：视口宽；正数向右看、负数向左看）。范围自动 clamp。 */
+  panExplore(deltaRatio: number): void {
+    if (!this.waitingForExplore) return;
+    const max = Math.max(0, this.exploreWidthRatio - 1);
+    this.exploreOffset = Math.max(0, Math.min(max, this.exploreOffset + deltaRatio));
+  }
+
+  /** 点击探索（normX/normY 为视口归一化坐标 0~1）；命中未发现的熱区则返回 true。 */
+  clickExplore(normX: number, normY: number): boolean {
+    if (!this.waitingForExplore || !this.exploreDef) return false;
+    const gx = (normX + this.exploreOffset) / this.exploreWidthRatio;
+    const gy = normY;
+    for (const h of this.exploreDef.hotspots) {
+      if (this.exploreFound.has(h.id)) continue;
+      const w = h.w ?? 0.08;
+      const hh = h.h ?? 0.12;
+      if (gx >= h.x - w / 2 && gx <= h.x + w / 2 && gy >= h.y - hh / 2 && gy <= h.y + hh / 2) {
+        this.exploreFound.add(h.id);
+        // 收集线索（角标 +1，登记进笔记本）
+        if (h.clue && !this.ownedClues.has(h.clue)) {
+          this.ownedClues.add(h.clue);
+          const cdef = this.clueDefs.get(h.clue);
+          if (cdef) this.onClueAdded?.(cdef);
+        }
+        // 弹出关键道具（物件放大图）
+        const it = h.item ? this.manifest?.items?.[h.item] : undefined;
+        if (it) {
+          this.renderer.showItem(it.src, it.caption, () => { /* 关闭道具后仍在探索中 */ });
+        }
+        this.onExploreFound?.(this.exploreFound.size, this.exploreDef.hotspots.length, h.label);
+        return true;
+      }
+    }
+    return false;
   }
 
   /** 暂停 */

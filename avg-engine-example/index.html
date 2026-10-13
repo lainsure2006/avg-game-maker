@@ -169,6 +169,16 @@
       </div>
       <!-- 养成事件 / 推理触发提示（阶段1/2 共用） -->
       <div id="event-toast" class="hidden"></div>
+      <!-- 阶段3：探索模式 HUD（拖拽平移 + 点击热区 + 结束） -->
+      <div id="explore-hud" class="hidden">
+        <div id="explore-hint" class="explore-hint"></div>
+        <div id="explore-count" class="explore-count"></div>
+        <div id="explore-controls" class="explore-controls">
+          <button id="btn-explore-left" title="向左看">◀</button>
+          <button id="btn-explore-end" class="primary">结束探索</button>
+          <button id="btn-explore-right" title="向右看">▶</button>
+        </div>
+      </div>
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>

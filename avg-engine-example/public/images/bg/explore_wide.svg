@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="720" viewBox="0 0 2560 720">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#243038"/>
+      <stop offset="0.55" stop-color="#1a242b"/>
+      <stop offset="1" stop-color="#0e151a"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161e24"/>
+      <stop offset="1" stop-color="#070b0e"/>
+    </linearGradient>
+    <linearGradient id="pillar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2c3a44"/>
+      <stop offset="0.5" stop-color="#1b252c"/>
+      <stop offset="1" stop-color="#10171c"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffd479" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffd479" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="0.5" cy="0.45" r="0.75">
+      <stop offset="0" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.6"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 背景墙 -->
+  <rect x="0" y="0" width="2560" height="720" fill="url(#wall)"/>
+
+  <!-- 地面 -->
+  <polygon points="0,500 2560,500 2560,720 0,720" fill="url(#floor)"/>
+  <line x1="0" y1="500" x2="2560" y2="500" stroke="#3a4a55" stroke-width="2" opacity="0.5"/>
+  <!-- 地砖透视线 -->
+  <g stroke="#2a363f" stroke-width="1.5" opacity="0.45">
+    <line x1="1280" y1="500" x2="0" y2="720"/>
+    <line x1="1280" y1="500" x2="900" y2="720"/>
+    <line x1="1280" y1="500" x2="1660" y2="720"/>
+    <line x1="1280" y1="500" x2="2560" y2="720"/>
+  </g>
+
+  <!-- 立柱（营造纵深） -->
+  <g>
+    <rect x="380" y="80" width="60" height="430" fill="url(#pillar)"/>
+    <rect x="1080" y="80" width="60" height="430" fill="url(#pillar)"/>
+    <rect x="1720" y="80" width="60" height="430" fill="url(#pillar)"/>
+    <rect x="2320" y="80" width="60" height="430" fill="url(#pillar)"/>
+  </g>
+
+  <!-- 左：储物柜（热区 0.30 / 0.66 ≈ 768,475） -->
+  <circle cx="768" cy="450" r="120" fill="url(#glow)"/>
+  <g>
+    <rect x="690" y="330" width="160" height="200" rx="6" fill="#2b343c" stroke="#46535d" stroke-width="3"/>
+    <line x1="690" y1="410" x2="850" y2="410" stroke="#46535d" stroke-width="3"/>
+    <rect x="704" y="350" width="14" height="40" rx="4" fill="#8a9aa6"/>
+    <rect x="704" y="430" width="14" height="40" rx="4" fill="#8a9aa6"/>
+    <circle cx="828" cy="370" r="5" fill="#c9d4dc"/>
+    <circle cx="828" cy="450" r="5" fill="#c9d4dc"/>
+  </g>
+
+  <!-- 中：护士台/桌（热区 0.55 / 0.60 ≈ 1408,432） -->
+  <circle cx="1408" cy="430" r="130" fill="url(#glow)"/>
+  <g>
+    <rect x="1300" y="400" width="220" height="120" rx="6" fill="#26323a" stroke="#46535d" stroke-width="3"/>
+    <rect x="1330" y="430" width="160" height="40" rx="4" fill="#11181d" stroke="#5a6770" stroke-width="2"/>
+    <circle cx="1448" cy="450" r="4" fill="#9fb0bb"/>
+    <!-- 桌上的一封信 -->
+    <rect x="1430" y="408" width="46" height="30" rx="2" fill="#d9d2c0" transform="rotate(-8 1453 423)"/>
+    <line x1="1438" y1="416" x2="1474" y2="414" stroke="#9a917c" stroke-width="1.5"/>
+  </g>
+
+  <!-- 右：墙上的合影（热区 0.80 / 0.50 ≈ 2048,360） -->
+  <circle cx="2048" cy="360" r="120" fill="url(#glow)"/>
+  <g>
+    <rect x="1980" y="290" width="140" height="150" rx="4" fill="#2b343c" stroke="#5a6770" stroke-width="4"/>
+    <rect x="1996" y="306" width="108" height="118" fill="#3a2f28"/>
+    <!-- 合影里的三个剪影 -->
+    <circle cx="2030" cy="345" r="16" fill="#caa987"/>
+    <rect x="2016" y="362" width="28" height="48" rx="6" fill="#7a8a95"/>
+    <circle cx="2075" cy="350" r="13" fill="#b89476"/>
+    <rect x="2064" y="364" width="22" height="42" rx="6" fill="#6d7d88"/>
+    <circle cx="2095" cy="358" r="10" fill="#d8b89a"/>
+    <rect x="2088" y="370" width="16" height="34" rx="5" fill="#5f6f7a"/>
+  </g>
+
+  <!-- 整体暗角 -->
+  <rect x="0" y="0" width="2560" height="720" fill="url(#vig)"/>
+  <!-- 顶部提示文字 -->
+  <text x="1280" y="60" font-family="sans-serif" font-size="26" fill="#6f8088" text-anchor="middle" opacity="0.6">护士站 · 拖动浏览</text>
+</svg>

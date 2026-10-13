@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#33373f"/>
+      <stop offset="1" stop-color="#12151a"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <g stroke="#caa44e" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 钥匙环 -->
+    <circle cx="170" cy="170" r="70"/>
+    <!-- 钥匙杆 -->
+    <line x1="170" y1="240" x2="170" y2="400"/>
+    <line x1="170" y1="400" x2="300" y2="400"/>
+    <!-- 齿 -->
+    <line x1="250" y1="400" x2="250" y2="360"/>
+    <line x1="290" y1="400" x2="290" y2="350"/>
+  </g>
+  <text x="256" y="470" font-family="sans-serif" font-size="22" fill="#caa44e" text-anchor="middle" opacity="0.7">No. 7-13</text>
+</svg>

@@ -58,6 +58,15 @@ export class UIManager {
 
   private advanceLockUntil: number = 0;
 
+  // 阶段3：探索模式 HUD
+  private exploreHud: HTMLElement;
+  private exploreHint: HTMLElement;
+  private exploreCount: HTMLElement;
+  private btnExploreLeft: HTMLElement;
+  private btnExploreRight: HTMLElement;
+  private btnExploreEnd: HTMLElement;
+  private exploreHintText: string = '';
+
   // 首页元素
   private titleMenu: HTMLElement;
   private btnTitleStart: HTMLElement;
@@ -139,6 +148,14 @@ export class UIManager {
     this.cluesFooterRead = document.getElementById('clues-footer-read')!;
     this.cluesFooterReason = document.getElementById('clues-footer-reason')!;
     this.cluesHint = document.getElementById('clues-hint')!;
+
+    // 阶段3：探索模式 HUD
+    this.exploreHud = document.getElementById('explore-hud')!;
+    this.exploreHint = document.getElementById('explore-hint')!;
+    this.exploreCount = document.getElementById('explore-count')!;
+    this.btnExploreLeft = document.getElementById('btn-explore-left')!;
+    this.btnExploreRight = document.getElementById('btn-explore-right')!;
+    this.btnExploreEnd = document.getElementById('btn-explore-end')!;
 
     this.eventToast = document.getElementById('event-toast')!;
 
@@ -222,6 +239,11 @@ export class UIManager {
       this.showEventToast(toast ?? `推理：${id}`);
     };
 
+    // 阶段3：探索模式回调
+    this.engine.onExploreEnter = (info) => this.showExploreHud(info);
+    this.engine.onExploreFound = (found, total, label) => this.updateExploreCount(found, total, label);
+    this.engine.onExploreExit = () => this.hideExploreHud();
+
     // 首页状态变化
     this.engine.onTitleScreenChange = (visible) => {
       if (visible) {
@@ -289,10 +311,41 @@ export class UIManager {
 
     // 点击画布推进
     document.getElementById('game-canvas')?.addEventListener('click', () => {
-      if (!this.engine.isOnTitleScreen()) {
+      if (!this.engine.isOnTitleScreen() && !this.engine.isExploring()) {
         this.advanceOnce();
       }
     }, { signal: sig });
+
+    // 阶段3：探索模式输入（拖拽平移 / 点击热区）—— 仅探索激活时生效
+    const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
+    let pDown = false, pDragged = false, pStartX = 0, pLastX = 0;
+    const DRAG_THRESH = 6;
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!this.engine.isExploring()) return;
+      pDown = true; pDragged = false; pStartX = e.clientX; pLastX = e.clientX;
+    }, { signal: sig });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!this.engine.isExploring() || !pDown) return;
+      const dx = e.clientX - pLastX; pLastX = e.clientX;
+      if (Math.abs(e.clientX - pStartX) > DRAG_THRESH) pDragged = true;
+      this.engine.panExplore(-dx / canvas.clientWidth); // 向右拖 → 视角向左（offset 减小）
+    }, { signal: sig });
+    canvas.addEventListener('pointerup', (e) => {
+      if (!this.engine.isExploring()) { pDown = false; return; }
+      pDown = false;
+      if (!pDragged) {
+        const rect = canvas.getBoundingClientRect();
+        const nx = (e.clientX - rect.left) / rect.width;
+        const ny = (e.clientY - rect.top) / rect.height;
+        const hit = this.engine.clickExplore(nx, ny);
+        if (!hit) this.showExploreNudge();
+      }
+    }, { signal: sig });
+    canvas.addEventListener('pointerleave', () => { pDown = false; }, { signal: sig });
+
+    this.btnExploreLeft.addEventListener('click', () => this.engine.panExplore(-0.3));
+    this.btnExploreRight.addEventListener('click', () => this.engine.panExplore(0.3));
+    this.btnExploreEnd.addEventListener('click', () => this.engine.exitExplore());
 
     // 首页按钮
     this.btnTitleStart.addEventListener('click', (e) => {
@@ -1186,6 +1239,32 @@ export class UIManager {
     } else {
       this.showCluesHint('线索不足以推出结论，再想想组合方式。');
     }
+  }
+
+  // ========== 阶段3：探索模式 HUD 控制 ==========
+  private showExploreHud(info: { hint?: string; total: number }): void {
+    this.exploreHintText = info.hint ?? '拖动浏览场景，点击发光处寻找线索';
+    this.exploreHint.textContent = this.exploreHintText;
+    this.updateExploreCount(0, info.total);
+    this.exploreHud.classList.remove('hidden');
+    this.dialogBox.classList.add('hidden'); // 探索时隐藏对话框，避免误触推进
+  }
+
+  private updateExploreCount(found: number, total: number, label?: string): void {
+    this.exploreCount.textContent = `线索 ${found}/${total}`;
+    if (label) {
+      this.exploreHint.textContent = `发现：${label}`;
+      window.setTimeout(() => { this.exploreHint.textContent = this.exploreHintText; }, 1600);
+    }
+  }
+
+  private hideExploreHud(): void {
+    this.exploreHud.classList.add('hidden');
+  }
+
+  private showExploreNudge(): void {
+    this.exploreHint.textContent = '（这里似乎什么也没有…）';
+    window.setTimeout(() => { this.exploreHint.textContent = this.exploreHintText; }, 1200);
   }
 
   private showCluesHint(text: string): void {

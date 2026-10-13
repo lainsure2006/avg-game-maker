@@ -1375,3 +1375,74 @@ body {
 #btn-clues .badge.hidden {
   display: none;
 }
+
+/* ========== 探索模式 HUD（阶段3） ========== */
+#explore-hud {
+  position: absolute;
+  inset: 0;
+  width: 1280px;
+  height: 720px;
+  pointer-events: none;   /* 容器不拦截，拖拽穿透到画布 */
+  z-index: 150;
+}
+#explore-hud button { pointer-events: auto; }
+
+.explore-hint {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffe6a8;
+  border: 1px solid rgba(255, 230, 168, 0.35);
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 15px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.explore-count {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #cfe8ff;
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 15px;
+}
+
+.explore-controls {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.explore-controls button {
+  background: rgba(0,0,0,0.6);
+  color: #eee;
+  border: 1px solid rgba(255,255,255,0.25);
+  padding: 10px 22px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.explore-controls button:hover {
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  border-color: rgba(255,255,255,0.5);
+}
+
+.explore-controls button.primary {
+  background: rgba(80, 140, 220, 0.7);
+  border-color: rgba(120, 170, 230, 0.9);
+}
