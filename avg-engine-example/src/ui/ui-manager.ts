@@ -100,6 +100,16 @@ export class UIManager {
   private qteKeyLabel: string = '空格';
   private qteDuration: number = 2;
 
+  // 阶段6：世界观图鉴面板（Codex）
+  private codexPanel: HTMLElement;
+  private codexContent: HTMLElement;
+  private codexTabs: HTMLElement;
+  private btnCodex: HTMLElement;
+  private btnCodexClose: HTMLElement;
+  private codexBadge: HTMLElement;
+  private codexBadgeTimer: number | null = null;
+  private codexActiveCat: string = 'character';
+
   // 首页元素
   private titleMenu: HTMLElement;
   private btnTitleStart: HTMLElement;
@@ -216,6 +226,14 @@ export class UIManager {
     this.qteRingFg.style.strokeDasharray = String(this.qteRingLen);
     this.qteRingFg.style.strokeDashoffset = '0';
 
+    // 阶段6：世界观图鉴面板 DOM 引用
+    this.codexPanel = document.getElementById('codex-panel')!;
+    this.codexContent = document.getElementById('codex-content')!;
+    this.codexTabs = document.getElementById('codex-tabs')!;
+    this.btnCodex = document.getElementById('btn-codex')!;
+    this.btnCodexClose = document.getElementById('btn-codex-close')!;
+    this.codexBadge = document.getElementById('codex-badge')!;
+
     this.eventToast = document.getElementById('event-toast')!;
 
     // 首页元素
@@ -320,6 +338,13 @@ export class UIManager {
     this.engine.onQteTick = (ratio) => this.updateQteRing(ratio);
     this.engine.onQteProgress = (ratio) => this.updateQteMash(ratio);
     this.engine.onQteExit = () => this.hideQte();
+
+    // 阶段6：Codex 解锁 → 刷新角标（若面板正打开则同步刷新列表）
+    this.engine.onCodexUnlocked = (def) => {
+      this.updateCodexBadge();
+      if (!this.codexPanel.classList.contains('hidden')) this.renderCodex();
+      this.showCodexHint(`已解锁图鉴 · ${def.title}`);
+    };
 
     // 首页状态变化
     this.engine.onTitleScreenChange = (visible) => {
@@ -598,6 +623,16 @@ export class UIManager {
       this.doDeduce();
     }, { signal: sig });
 
+    // 阶段6：世界观图鉴（Codex）
+    this.btnCodex.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleCodex();
+    }, { signal: sig });
+    this.btnCodexClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.hideCodex();
+    }, { signal: sig });
+
     // 故事选择关闭
     document.getElementById('btn-story-select-close')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -632,7 +667,8 @@ export class UIManager {
           this.backlogPanel.classList.contains('hidden') &&
           this.storySelectPanel.classList.contains('hidden') &&
           this.relationsPanel.classList.contains('hidden') &&
-          this.cluesPanel.classList.contains('hidden')) {
+          this.cluesPanel.classList.contains('hidden') &&
+          this.codexPanel.classList.contains('hidden')) {
         switch (e.key) {
           case ' ':
           case 'Enter':
@@ -650,6 +686,7 @@ export class UIManager {
         this.hideStorySelect();
         this.hideRelations();
         this.hideClues();
+        this.hideCodex();
       }
     }, { signal: sig });
   }
@@ -1427,6 +1464,113 @@ export class UIManager {
     this.qteOverlay.classList.remove('urgent');
   }
 
+  // ========== 阶段6：世界观图鉴面板（Codex） ==========
+  private toggleCodex(): void {
+    if (this.codexPanel.classList.contains('hidden')) this.showCodex();
+    else this.hideCodex();
+  }
+
+  private showCodex(): void {
+    // 默认进入「已解锁最多」的分类？这里固定从 character 起，若无则取第一个有内容的分类
+    const defs = this.engine.getCodexDefs();
+    if (defs.length === 0) {
+      this.codexActiveCat = 'character';
+    }
+    this.renderCodex();
+    this.codexPanel.classList.remove('hidden');
+  }
+
+  private hideCodex(): void {
+    this.codexPanel.classList.add('hidden');
+  }
+
+  /** 渲染图鉴：顶部分类标签（角色/地点/术语/线索）+ 当前分类卡片网格（未解锁灰显 ???） */
+  private renderCodex(): void {
+    const defs = this.engine.getCodexDefs();
+    const unlocked = new Set(this.engine.getUnlockedCodex());
+
+    if (defs.length === 0) {
+      this.codexTabs.innerHTML = '';
+      this.codexContent.innerHTML = '<div class="codex-empty">本故事暂未配置世界观图鉴（codex 指令）。</div>';
+      return;
+    }
+
+    // 分类顺序与中文名
+    const CATS: Array<{ key: string; name: string }> = [
+      { key: 'character', name: '角色' },
+      { key: 'place', name: '地点' },
+      { key: 'term', name: '术语' },
+      { key: 'clue', name: '线索' },
+    ];
+    const catName: Record<string, string> = Object.fromEntries(CATS.map(c => [c.key, c.name]));
+
+    // 若当前激活分类无条目，则回退到第一个有内容的分类
+    const catsWithItems = CATS.filter(c => defs.some(d => d.category === c.key));
+    if (!catsWithItems.some(c => c.key === this.codexActiveCat)) {
+      this.codexActiveCat = catsWithItems[0]?.key ?? 'character';
+    }
+
+    // 渲染分类标签（含已解锁/总数）
+    this.codexTabs.innerHTML = '';
+    for (const c of CATS) {
+      const inCat = defs.filter(d => d.category === c.key);
+      if (inCat.length === 0) continue;
+      const unlockedInCat = inCat.filter(d => unlocked.has(d.id)).length;
+      const tab = document.createElement('button');
+      tab.className = 'codex-tab' + (c.key === this.codexActiveCat ? ' active' : '');
+      tab.innerHTML = `${c.name}<span class="codex-tab-count">${unlockedInCat}/${inCat.length}</span>`;
+      tab.addEventListener('click', () => {
+        this.codexActiveCat = c.key;
+        this.renderCodex();
+      });
+      this.codexTabs.appendChild(tab);
+    }
+
+    // 渲染当前分类卡片
+    this.codexContent.innerHTML = '';
+    const list = defs.filter(d => d.category === this.codexActiveCat);
+    for (const d of list) {
+      const isUnlocked = unlocked.has(d.id);
+      const card = document.createElement('div');
+      card.className = isUnlocked ? 'codex-card' : 'codex-card locked';
+      if (isUnlocked) {
+        const iconHtml = d.icon
+          ? `<img src="${this.escapeHtml(d.icon)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;align-self:flex-start;border:1px solid rgba(255,255,255,0.12)" />`
+          : '';
+        card.innerHTML = `
+          ${iconHtml}
+          <div class="codex-cat">${catName[d.category] ?? d.category}</div>
+          <div class="codex-title">${this.escapeHtml(d.title)}</div>
+          <div class="codex-desc">${this.escapeHtml(d.desc)}</div>
+        `;
+      } else {
+        card.innerHTML = `
+          <div class="codex-cat">${catName[d.category] ?? d.category}</div>
+          <div class="codex-title">？</div>
+          <div class="codex-desc">未解锁 · 继续探索以揭示</div>
+        `;
+      }
+      this.codexContent.appendChild(card);
+    }
+  }
+
+  /** 刷新顶栏「图鉴」角标（已解锁条目数） */
+  private updateCodexBadge(): void {
+    const n = this.engine.getUnlockedCodex().length;
+    if (n > 0) {
+      this.codexBadge.textContent = String(n);
+      this.codexBadge.classList.remove('hidden');
+    } else {
+      this.codexBadge.classList.add('hidden');
+    }
+  }
+
+  /** 图鉴解锁瞬时提示（复用线索提示样式） */
+  private showCodexHint(text: string): void {
+    // 轻量复用：直接在角标上提示，避免新增 DOM；此处用 eventToast 风格更直观
+    this.showEventToast(text);
+  }
+
   // ========== 阶段3：探索模式 HUD 控制 ==========
   private showExploreHud(info: { hint?: string; total: number }): void {
     this.exploreHintText = info.hint ?? '拖动浏览场景，点击发光处寻找线索';
@@ -1596,6 +1740,7 @@ export class UIManager {
     this.engine.onEventFired = null;
     this.engine.onClueAdded = null;
     this.engine.onDeductionFired = null;
+    this.engine.onCodexUnlocked = null;
     this.engine.onHubEnter = null;
     this.engine.onHubUpdate = null;
     this.engine.onHubLocked = null;

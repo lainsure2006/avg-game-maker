@@ -16,6 +16,15 @@ export const script = [
   { type: 'cinematic', on: true },
   { type: 'label', id: 'start' },
 
+  // 阶段6·Codex 演示：声明图鉴目录（角色/地点/术语），运行时逐步解锁
+  { type: 'codex', list: [
+    { id: 'cx_gucheng', category: 'character', title: '顾承', desc: '《缄默回廊》核心人物，冷静而背负秘密的男人。' },
+    { id: 'cx_jianmo', category: 'place', title: '缄默回廊', desc: '一座废弃却仍在运转的滨海医院，陈旧阴森却住着人。' },
+    { id: 'cx_protocol', category: 'term', title: '缄默协议', desc: '医院遗留的不成文规则：入夜后不得发出声响。' },
+  ] },
+  // 开场即解锁一条，便于打开「图鉴」面板查看效果（顶栏角标 +1）
+  { type: 'codexUnlock', id: 'cx_gucheng' },
+
   { type: 'narration', text: '【QTE 快速反应 · 演示】接下来会弹出三次限时反应事件，请在倒计时环归零前按屏幕提示操作。' },
   { type: 'char', action: 'show', id: 'alice', position: 'center', pose: 'default' },
   { type: 'dialog', speaker: '爱丽丝', text: '准备好了吗？第一个考验——提示出现时立刻点击屏幕！' },
@@ -42,6 +51,7 @@ export const script = [
 
   // ===== QTE 3：mash 连点模式 =====
   { type: 'label', id: 'qte3' },
+  { type: 'codexUnlock', id: 'cx_jianmo' },
   { type: 'narration', text: '第三个：限时内疯狂连按【空格】键，把进度条填满！' },
   { type: 'qte', id: 'qte_mash', prompt: '狂按空格键！', duration: 3, mode: 'mash', key: 'Space', target: 10, successLabel: 'mash_ok', failLabel: 'mash_fail' },
   { type: 'label', id: 'mash_ok' },
@@ -49,12 +59,14 @@ export const script = [
   { type: 'jump', label: 'finish' },
   { type: 'label', id: 'mash_fail' },
   { type: 'dialog', speaker: '爱丽丝', text: '差一点点就填满了，下次再快些也能过！' },
+  { type: 'codexUnlock', id: 'cx_protocol' },
   { type: 'jump', label: 'finish' },
 
   // ===== 收尾 =====
   { type: 'label', id: 'finish' },
+  { type: 'codexUnlock', id: 'cx_protocol' },
   { type: 'cinematic', on: false },
-  { type: 'narration', text: 'QTE 演示结束。你可以随时在「设置 → 快速反应事件(QTE)」里关闭总开关：关闭后引擎会直接判定成功，不弹覆盖层，照顾休闲玩家。' },
+  { type: 'narration', text: 'QTE 与图鉴演示结束。你可以随时在「设置 → 快速反应事件(QTE)」里关闭总开关：关闭后引擎会直接判定成功，不弹覆盖层，照顾休闲玩家。顶栏「图鉴」可随时查看已解锁的世界观条目。' },
   { type: 'char', action: 'hide', id: 'alice' },
   { type: 'end' },
 ];

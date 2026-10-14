@@ -3,7 +3,7 @@
  * 将 YAML-like 脚本解析为指令序列
  */
 
-import type { ScriptCommand, GradeType, WeatherType, TransitionType, RelationDef, EventDef, ClueDef, DeductionDef, ExploreHotspot, HubNode } from './types';
+import type { ScriptCommand, GradeType, WeatherType, TransitionType, RelationDef, EventDef, ClueDef, CodexDef, DeductionDef, ExploreHotspot, HubNode } from './types';
 
 /**
  * 解析脚本 JSON 为指令序列
@@ -206,6 +206,18 @@ export function parseScript(script: Record<string, unknown>[]): ScriptCommand[] 
           successLabel: item.successLabel as string,
           failLabel: item.failLabel as string,
           once: (item.once as boolean) ?? false,
+        } as ScriptCommand;
+
+      case 'codex':
+        return {
+          type: 'codex',
+          list: (item.list as CodexDef[]) || [],
+        } as ScriptCommand;
+
+      case 'codexUnlock':
+        return {
+          type: 'codexUnlock',
+          id: item.id as string,
         } as ScriptCommand;
 
       default:

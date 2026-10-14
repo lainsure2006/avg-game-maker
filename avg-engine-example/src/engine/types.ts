@@ -59,6 +59,8 @@ export type ScriptCommand =
   | { type: 'returnHub' }  // 阶段4：场景结束后回到枢纽（消耗已计入进入节点时）
   | { type: 'cinematic'; on: boolean }  // 阶段5：电影宽银幕开关（显示黑边 + 加强背景缓推）
   | { type: 'qte'; id: string; prompt: string; duration: number; mode: 'tap' | 'key' | 'mash'; key?: string; target?: number; successLabel: string; failLabel: string; once?: boolean }  // 阶段6·QTE 快速反应事件（可关闭）
+  | { type: 'codex'; list: CodexDef[] }  // 阶段6·Codex：声明图鉴目录（init 预扫描登记 def）
+  | { type: 'codexUnlock'; id: string }  // 阶段6·Codex：解锁某个图鉴条目（置 unlockedCodex）
   | { type: 'end' };
 
 export interface ChoiceItem {
@@ -94,6 +96,15 @@ export interface ClueDef {
   name: string;        // 显示名（如「锈蚀的钥匙」）
   desc: string;        // 描述 / 揭示的含义
   icon?: string;       // 可选缩略图地址（建议放 public/images/items/…）
+}
+
+/** 世界观图鉴条目定义（阶段6·Codex：由 `codex` 指令声明，运行时 `codexUnlock` 解锁） */
+export interface CodexDef {
+  id: string;          // 图鉴条目唯一 id
+  category: 'character' | 'place' | 'term' | 'clue';  // 分类：角色/地点/术语/线索
+  title: string;       // 显示名（如「顾承」「废旧码头」「缄默协议」）
+  desc: string;        // 解锁后的百科描述
+  icon?: string;       // 可选缩略图地址（建议放 public/images/items/… 或 sprite）
 }
 
 /** 推理规则定义（由 `deduce` 指令声明，init 预扫描；玩家在推理板选择线索后由引擎判定） */
@@ -237,6 +248,7 @@ export interface SerializedGameState {
   variables: Record<string, number | string | boolean>;
   flags: string[];
   clues: string[];     // 已收集线索 id 列表（读档恢复用）
+  unlockedCodex: string[];  // 阶段6·Codex：已解锁图鉴条目 id 列表（读档恢复用）
   hub: HubSaveState | null;  // 阶段4：中枢纽状态（读档恢复用，非枢纽中则为 null）
   backlog: BacklogEntry[];
   scene: {

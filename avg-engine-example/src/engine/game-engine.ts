@@ -17,6 +17,7 @@ import type {
   RelationDef,
   EventDef,
   ClueDef,
+  CodexDef,
   DeductionDef,
   ExploreHotspot,
   ExploreDef,
@@ -86,6 +87,10 @@ export class GameEngine {
   private clueDefs: Map<string, ClueDef> = new Map();
   private ownedClues: Set<string> = new Set();
   private deductionList: DeductionDef[] = [];
+
+  // 世界观图鉴（阶段6·Codex）：条目 def（init 预扫描）+ 已解锁集合
+  private codexDefs: Map<string, CodexDef> = new Map();
+  private unlockedCodex: Set<string> = new Set();
 
   // 探索系统（阶段3）：宽图平移 + 热区点击
   private exploreDef: ExploreDef | null = null;
@@ -186,6 +191,8 @@ export class GameEngine {
   onClueAdded: ((clue: ClueDef) => void) | null = null;
   /** 推理成功（tryDeduce 命中）；UI 据此弹瞬时提示 */
   onDeductionFired: ((id: string, toast?: string) => void) | null = null;
+  /** 阶段6·Codex：解锁图鉴条目（codexUnlock 执行时）；UI 据此刷新角标/弹提示 */
+  onCodexUnlocked: ((def: CodexDef) => void) | null = null;
   /** 进入探索模式（UI 据此显示 HUD） */
   onExploreEnter: ((info: ExploreInfo) => void) | null = null;
   /** 探索中命中热区（UI 刷新计数/提示） */
@@ -239,6 +246,8 @@ export class GameEngine {
     this.clueDefs.clear();
     this.ownedClues.clear();
     this.deductionList = [];
+    this.codexDefs.clear();
+    this.unlockedCodex.clear();
     for (const cmd of this.commands) {
       if (cmd.type === 'relation' && 'characters' in cmd) {
         for (const c of cmd.characters) this.relations.set(c.id, c);
@@ -250,6 +259,9 @@ export class GameEngine {
         this.clueDefs.set(cmd.id, { id: cmd.id, name: cmd.name, desc: cmd.desc, icon: cmd.icon });
       } else if (cmd.type === 'deduce' && 'list' in cmd) {
         for (const d of cmd.list) this.deductionList.push(d);
+      } else if (cmd.type === 'codex' && 'list' in cmd) {
+        // 阶段6·Codex：预扫描登记图鉴 def（读档安全：不依赖执行顺序）
+        for (const c of cmd.list) this.codexDefs.set(c.id, c);
       }
     }
 
@@ -346,6 +358,9 @@ export class GameEngine {
 
     // 恢复已收集线索（def 已在 init 预扫描登记，此处仅重建「已拥有」集合）
     this.ownedClues = new Set(state.clues ?? []);
+
+    // 阶段6·Codex：恢复已解锁图鉴条目
+    this.unlockedCodex = new Set(state.unlockedCodex ?? []);
 
     // 关键修复：退出标题屏，否则主循环会一直渲染标题页，读档无效
     this.onTitleScreen = false;
@@ -781,6 +796,27 @@ export class GameEngine {
         this.executeNext();
         break;
 
+      case 'codex': {
+        // 阶段6·Codex：图鉴目录声明。def 已在 init 预扫描登记；运行时兜底再登记一次
+        // （确保即便绕过预扫描也能登记），随后推进指针，不暂停、不弹窗。
+        for (const c of cmd.list) this.codexDefs.set(c.id, c);
+        this.commandIndex++;
+        this.executeNext();
+        break;
+      }
+
+      case 'codexUnlock': {
+        // 阶段6·Codex：解锁条目。置 unlockedCodex 集合（读档恢复），并回调 UI 刷新角标/提示。
+        if (!this.unlockedCodex.has(cmd.id)) {
+          this.unlockedCodex.add(cmd.id);
+          const def = this.codexDefs.get(cmd.id);
+          if (def) this.onCodexUnlocked?.(def);
+        }
+        this.commandIndex++;
+        this.executeNext();
+        break;
+      }
+
       case 'explore': {
         // 探索模式：先跳过本指令（避免 exit 后再次进入），再进入探索并暂停主脚本推进，
         // 直到 UI「结束探索」调用 exitExplore → executeNext 才从后续指令继续。
@@ -1185,6 +1221,7 @@ export class GameEngine {
       variables: this.variables.export(),
       flags: this.variables.exportFlags(),
       clues: Array.from(this.ownedClues),
+      unlockedCodex: Array.from(this.unlockedCodex),
       hub: this.waitingForHub && this.hubDef
         ? { def: this.hubDef, phase: this.hubPhase, apLeft: this.hubApLeft }
         : null,
@@ -1245,6 +1282,16 @@ export class GameEngine {
     return Array.from(this.ownedClues)
       .map(id => this.clueDefs.get(id))
       .filter((c): c is ClueDef => !!c);
+  }
+
+  /** 获取全部图鉴目录（供 UI 图鉴面板渲染分类） */
+  getCodexDefs(): CodexDef[] {
+    return Array.from(this.codexDefs.values());
+  }
+
+  /** 获取已解锁图鉴条目 id 列表 */
+  getUnlockedCodex(): string[] {
+    return Array.from(this.unlockedCodex);
   }
 
   /** 获取全部推理规则（供 UI 推理板判断可选线索 / 提示用） */
@@ -1551,6 +1598,7 @@ export class GameEngine {
     this.pendingEndingId = null;
     this.onClueAdded = null;
     this.onDeductionFired = null;
+    this.onCodexUnlocked = null;
     this.titleParticles = [];
     this.titleLastTs = 0;
     this.titleAmbient = 'none';

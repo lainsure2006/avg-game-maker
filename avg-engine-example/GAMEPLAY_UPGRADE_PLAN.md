@@ -58,7 +58,7 @@
   ↓
 阶段5  动画/特效润色（宽银幕/拾取闪光/立绘弹入）        ← ✅ 已完成（验收通过）
   ↓
-阶段6  QTE（✅已完成）· 世界观图鉴 / 多周目（纯引擎·进行中）· 视差/眨眼（⚠️素材待出图）
+阶段6  QTE（✅已完成）· 世界观图鉴（✅已完成）· 多周目（纯引擎·待实施）· 视差/眨眼（⚠️素材待出图）
 ```
 
 ---
@@ -300,11 +300,12 @@ interface HubDef {
 - **验收**：选入 story11 → 三次 QTE 依次出现 → 点中/按键/填满跳 success，不操作超时跳 fail；设置关 QTE 后三事件直接成功不触发；读档后 `once` 事件不重触。
 - **已知约束**：`story11` 为新增 digit 目录，需重启 dev 服务器（glob 编译期扫描）才会出现在故事列表。
 
-### 9.2 世界观图鉴 Codex（收集式百科）
-- **新增指令** `{ type:'codex', list:[{ id, category:'character'|'place'|'term'|'clue', title, desc, icon?, unlock? }] }` + `{ type:'codexUnlock', id }`
-- **行为**：顶栏「图鉴」入口 → `#codex-panel` 分类（角色/地点/术语/线索）列卡片；已解锁显示缩略图+名称+描述，未解锁灰显「???」+「未解锁」。
-- **接入**：types 加 `CodexDef` + `codex`/`codexUnlock` 指令；game-engine 加 `codexDefs: Map` + `unlockedCodex: Set`（序列化进 `SerializedGameState`）；ui-manager 加 `#codex-panel`（分类标签 + 卡片网格 + ??? 占位）+ 顶栏入口；可复用 `relation`/`clue` 数据少写。
-- **验收**：声明 codex → 顶栏出现入口；`codexUnlock` 后条目从 ?? 变可见；读档恢复。
+### 9.2 世界观图鉴 Codex（收集式百科） ✅ 已完成（2026-10-14 验收待用户实测）
+- **新增指令** `{ type:'codex', list:[{ id, category:'character'|'place'|'term'|'clue', title, desc, icon? }] }` + `{ type:'codexUnlock', id }`
+- **行为**：顶栏「图鉴」入口 → `#codex-panel` 分类标签（角色/地点/术语/线索，各标签显示「已解锁/总数」）→ 卡片网格；已解锁显示图标+名称+描述，未解锁灰显「?」+「未解锁 · 继续探索以揭示」。解锁时顶栏角标 +1 并弹瞬时提示。
+- **接入**：types 加 `CodexDef` + `codex`/`codexUnlock` 指令 + `SerializedGameState.unlockedCodex`；game-engine 加 `codexDefs: Map` + `unlockedCodex: Set`（init 预扫描 codex 声明；`codexUnlock` 置集合 + 回调 `onCodexUnlocked`；`getSaveState`/`restoreFromSave` 序列化）；ui-manager 加 `#codex-panel`（分类标签 + 卡片网格 + ??? 占位）+ 顶栏「图鉴」入口 + 角标 + 键盘 Esc 关闭 + keydown 守卫；index.html 加按钮与面板；main.css 加样式。
+- **验收**：story11 含 codex 声明（3 条）与 3 处解锁 → 顶栏出现「图鉴」入口且角标随解锁递增 1→2→3；打开面板分类切换正常，未解锁条目显 ???；读档后解锁状态恢复。
+- **已知约束**：`story11` 为新增 digit 目录，需重启 dev 服务器才会出现在故事列表。
 
 ### 9.3 多周目路线锁 + NG+（携带好感/解锁）
 - **设计**：`SaveData`/`SerializedGameState` 加 `playthrough`（周目数）+ 保留集；通关 `end` 后标题屏提供「进入 NG+」；NG+ 重置脚本指针但保留选定变量子集（好感）+ flags 子集（解锁）；隐藏路线 `choice`/`hub` 用 `requires:'playthrough>=2'`。

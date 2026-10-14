@@ -10,7 +10,7 @@ const story: StoryDef = {
   id: 'demo_qte',
   title: 'QTE反应演示',
   subtitle: '— 阶段6 实测 —',
-  description: '演示 QTE 快速反应事件：点击 / 按键 / 连点三种模式，含设置总开关与读档守门。',
+  description: '阶段6 综合演示：QTE 快速反应（点击/按键/连点）+ 世界观图鉴 Codex（声明与逐步解锁）。',
   titleScreen: {
     background: 'classroom',
     title: 'QTE反应演示',
