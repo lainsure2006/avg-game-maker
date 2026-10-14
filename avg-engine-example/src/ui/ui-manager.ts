@@ -86,6 +86,20 @@ export class UIManager {
   private hubTimePhases: string[] = [];
   private hubApPerPhase: number = 1;
 
+  // 阶段6：QTE 快速反应覆盖层
+  private qteOverlay: HTMLElement;
+  private qtePrompt: HTMLElement;
+  private qteInstruction: HTMLElement;
+  private qteTimeLabel: HTMLElement;
+  private qteRingFg: SVGCircleElement;
+  private qteRingLen: number = 2 * Math.PI * 54;
+  private qteMashWrap: HTMLElement;
+  private qteMashFill: HTMLElement;
+  private qteMashCount: HTMLElement;
+  private qteMode: 'tap' | 'key' | 'mash' = 'tap';
+  private qteKeyLabel: string = '空格';
+  private qteDuration: number = 2;
+
   // 首页元素
   private titleMenu: HTMLElement;
   private btnTitleStart: HTMLElement;
@@ -189,6 +203,19 @@ export class UIManager {
     this.btnHubEndDay = document.getElementById('btn-hub-end-day')!;
     this.hubLockedToast = document.getElementById('hub-locked-toast')!;
 
+    // 阶段6：QTE 覆盖层 DOM 引用
+    this.qteOverlay = document.getElementById('qte-overlay')!;
+    this.qtePrompt = document.getElementById('qte-prompt')!;
+    this.qteInstruction = document.getElementById('qte-instruction')!;
+    this.qteTimeLabel = document.getElementById('qte-time-label')!;
+    this.qteRingFg = document.getElementById('qte-ring-fg') as unknown as SVGCircleElement;
+    this.qteMashWrap = document.getElementById('qte-mash-wrap')!;
+    this.qteMashFill = document.getElementById('qte-mash-fill')!;
+    this.qteMashCount = document.getElementById('qte-mash-count')!;
+    // 初始化倒计时环：整圈 dasharray，offset=0 即满圈
+    this.qteRingFg.style.strokeDasharray = String(this.qteRingLen);
+    this.qteRingFg.style.strokeDashoffset = '0';
+
     this.eventToast = document.getElementById('event-toast')!;
 
     // 首页元素
@@ -288,6 +315,12 @@ export class UIManager {
     // 阶段5：探索拾取 → 播放金色光环
     this.engine.onPickupFlash = () => this.showPickupFlash();
 
+    // 阶段6：QTE 快速反应回调
+    this.engine.onQteEnter = (info) => this.showQte(info);
+    this.engine.onQteTick = (ratio) => this.updateQteRing(ratio);
+    this.engine.onQteProgress = (ratio) => this.updateQteMash(ratio);
+    this.engine.onQteExit = () => this.hideQte();
+
     // 首页状态变化
     this.engine.onTitleScreenChange = (visible) => {
       if (visible) {
@@ -358,6 +391,11 @@ export class UIManager {
       if (!this.engine.isOnTitleScreen() && !this.engine.isExploring() && !this.engine.isInHub()) {
         this.advanceOnce();
       }
+    }, { signal: sig });
+
+    // 阶段6：QTE 覆盖层点击 → 视为一次输入（tap 模式直接成功；mash 模式累加计数）
+    this.qteOverlay.addEventListener('click', () => {
+      if (this.engine.isQteActive()) this.engine.qteInput();
     }, { signal: sig });
 
     // 阶段3：探索模式输入（拖拽平移 / 点击热区）—— 仅探索激活时生效
@@ -577,6 +615,18 @@ export class UIManager {
 
     // 键盘控制
     document.addEventListener('keydown', (e) => {
+      // 阶段6：QTE 激活时，按键优先作为 QTE 输入（key/mash 模式），不触发对话推进
+      if (this.engine.isQteActive()) {
+        if (this.qteMode !== 'tap') {
+          const pressed = e.key.toUpperCase();
+          const codeMatches = e.code === 'Space' || e.key === ' ' || pressed === this.qteKeyLabel.toUpperCase();
+          if (codeMatches) {
+            e.preventDefault();
+            this.engine.qteInput();
+          }
+        }
+        return;
+      }
       if (this.saveLoadPanel.classList.contains('hidden') &&
           this.settingsPanel.classList.contains('hidden') &&
           this.backlogPanel.classList.contains('hidden') &&
@@ -1104,6 +1154,13 @@ export class UIManager {
       this.applyFontSize();
       this.saveSettings();
     });
+
+    // 阶段6：QTE 总开关
+    const qteEnabled = document.getElementById('setting-qte-enabled') as HTMLInputElement;
+    qteEnabled.addEventListener('change', () => {
+      this.engine.settings.qteEnabled = qteEnabled.checked;
+      this.saveSettings();
+    });
   }
 
   /** 同步设置到 UI */
@@ -1113,6 +1170,7 @@ export class UIManager {
     (document.getElementById('setting-bgm-volume') as HTMLInputElement).value = String(this.engine.settings.bgmVolume);
     (document.getElementById('setting-se-volume') as HTMLInputElement).value = String(this.engine.settings.seVolume);
     (document.getElementById('setting-font-size') as HTMLSelectElement).value = this.engine.settings.fontSize;
+    (document.getElementById('setting-qte-enabled') as HTMLInputElement).checked = this.engine.settings.qteEnabled;
   }
 
   /** 应用字体大小 */
@@ -1308,6 +1366,67 @@ export class UIManager {
     }, 650);
   }
 
+  // ========== 阶段6：QTE 快速反应覆盖层 ==========
+  private showQte(info: { prompt: string; duration: number; mode: 'tap' | 'key' | 'mash'; target?: number; key?: string }): void {
+    this.qteMode = info.mode;
+    this.qteDuration = info.duration;
+    this.qteKeyLabel = info.key ? this.keyToLabel(info.key) : '空格';
+    this.qtePrompt.textContent = info.prompt;
+
+    if (info.mode === 'tap') {
+      this.qteInstruction.textContent = '👆 点击屏幕！';
+    } else if (info.mode === 'key') {
+      this.qteInstruction.textContent = `⌨️ 按下 [${this.qteKeyLabel}] 键！`;
+    } else {
+      this.qteInstruction.textContent = `🕹️ 狂按 [${this.qteKeyLabel}] 键！(0/${info.target ?? 0})`;
+    }
+
+    // 倒计时环初始满圈 + 时间数字
+    this.qteRingFg.style.strokeDashoffset = '0';
+    this.qteTimeLabel.textContent = String(Math.max(1, Math.ceil(info.duration)));
+    this.qteOverlay.classList.remove('urgent', 'hidden');
+
+    // mash 进度条：仅在 mash 模式显示并重置
+    if (info.mode === 'mash') {
+      this.qteMashWrap.classList.remove('hidden');
+      this.qteMashFill.style.width = '0%';
+      this.qteMashCount.textContent = `0 / ${info.target ?? 0}`;
+    } else {
+      this.qteMashWrap.classList.add('hidden');
+    }
+  }
+
+  /** 按键名 → 中文/可读标签 */
+  private keyToLabel(key: string): string {
+    switch (key) {
+      case 'SPACE': return '空格';
+      case 'ENTER': return '回车';
+      default: return key.length === 1 ? key.toUpperCase() : key;
+    }
+  }
+
+  /** 倒计时环刷新（ratio 1→0） */
+  private updateQteRing(ratio: number): void {
+    const r = Math.max(0, Math.min(1, ratio));
+    this.qteRingFg.style.strokeDashoffset = String(this.qteRingLen * (1 - r));
+    this.qteTimeLabel.textContent = String(Math.max(0, Math.ceil(r * this.qteDuration)));
+    this.qteOverlay.classList.toggle('urgent', r < 0.34);
+  }
+
+  /** mash 连点进度刷新（ratio 0→1） */
+  private updateQteMash(ratio: number): void {
+    const r = Math.max(0, Math.min(1, ratio));
+    this.qteMashFill.style.width = `${Math.round(r * 100)}%`;
+    const target = this.engine.getQteTarget();
+    this.qteMashCount.textContent = `${Math.round(r * Math.max(1, target))} / ${target}`;
+  }
+
+  /** 隐藏 QTE 覆盖层 */
+  private hideQte(): void {
+    this.qteOverlay.classList.add('hidden');
+    this.qteOverlay.classList.remove('urgent');
+  }
+
   // ========== 阶段3：探索模式 HUD 控制 ==========
   private showExploreHud(info: { hint?: string; total: number }): void {
     this.exploreHintText = info.hint ?? '拖动浏览场景，点击发光处寻找线索';
@@ -1483,6 +1602,10 @@ export class UIManager {
     this.engine.onHubExit = null;
     this.engine.onCinematic = null;
     this.engine.onPickupFlash = null;
+    this.engine.onQteEnter = null;
+    this.engine.onQteTick = null;
+    this.engine.onQteProgress = null;
+    this.engine.onQteExit = null;
     if (this.pickupFlashTimer) window.clearTimeout(this.pickupFlashTimer);
   }
 }

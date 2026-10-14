@@ -54,11 +54,11 @@
   ↓
 阶段3  探索模式（宽图平移 + 热区点击）                  ← ✅ 已完成
   ↓
-阶段4  场景自选 hub 地图 + 时间/行动点系统              ← ✅ 已实现（待实测）
+阶段4  场景自选 hub 地图 + 时间/行动点系统              ← ✅ 已完成（验收通过）
   ↓
-阶段5  动画/特效润色（视差/宽银幕/微表情）
+阶段5  动画/特效润色（宽银幕/拾取闪光/立绘弹入）        ← ✅ 已完成（验收通过）
   ↓
-阶段6  可选：QTE / 世界观图鉴 / 多周目路线锁
+阶段6  QTE（✅已完成）· 世界观图鉴 / 多周目（纯引擎·进行中）· 视差/眨眼（⚠️素材待出图）
 ```
 
 ---
@@ -187,7 +187,7 @@ interface DeductionDef {
 
 ---
 
-## 7. 阶段 4 · 场景自选 hub（✅ 已实现 · 待实测）
+## 7. 阶段 4 · 场景自选 hub（✅ 已实现 · 验收通过）
 
 > 时间/行动点采用「日程表模型」：N 个时间阶段 × 每阶段 M 行动点；阶段内可访问多个节点，行动点花完自动进入下一时段；全部时段结束才收尾（或玩家主动「结束今天」）。
 
@@ -251,7 +251,7 @@ interface HubDef {
 
 ---
 
-## 8. 阶段 5 · 动画 / 特效润色（✅ 已实现 · 待实测）
+## 8. 阶段 5 · 动画 / 特效润色（✅ 已实现 · 验收通过）
 
 > 目标：在不改内核的前提下，给对话演出增加「电影感」与「鲜活感」。
 > 三项全部纯 CSS/Canvas（无新素材）；视差分层与眨眼/微表情因需分层素材，**本轮不做**，留待阶段6 后再议。
@@ -287,11 +287,34 @@ interface HubDef {
 
 ---
 
-## 9. 阶段 6 · 可选远期（未规划，待阶段5 验收后再定）
-- QTE（可关闭）
-- 世界观图鉴 Codex
-- 多周目路线锁 + NG+ 携带好感
-- **视差分层 / 眨眼微表情**（依赖分层素材，需按 krea2-scene-sheet 规格补前景/背景分层图与眼睛单独层）
+## 9. 阶段 6 · 可选系统（进行中）
+
+> **范围约定（2026-10-14）**：纯引擎三项（QTE / 世界观图鉴 Codex / 多周目路线锁+NG+）先行；**视差分层 + 眨眼/微表情需补 krea2-scene-sheet 分层素材，待用户开机出图（AutoDL）后实施——届时由 AI 主动通知用户开机**。提交约定：每项一个 commit，前缀 `[阶段6·QTE]` / `[阶段6·Codex]` / `[阶段6·NG+]`。
+
+### 9.1 QTE 快速反应事件（可关闭） ✅ 已完成（2026-10-14 验收待用户实测）
+- **新增指令** `{ type:'qte', id, prompt, duration, mode:'tap'|'key'|'mash', key?, target?, successLabel, failLabel, once? }`
+  - `mode:'tap'` 限时点击屏幕；`'key'` 限时按某键（如 Space）；`'mash'` 限时连点 N 次（`target` = 次数）。
+- **行为**：进入后暂停主循环 `advance`（画布点击被 `waitingForQte` 守卫拦截），弹出 `#qte-overlay`（提示 + SVG 倒计时环 + 剩余秒数 + 紧急态转红）；成功→跳 `successLabel`，超时/失败→跳 `failLabel`；`once` 守门（flag.qte.<id>）防读档重触。
+- **可关闭**：设置面板加「快速反应事件(QTE)」开关（默认开，序列化进 localStorage）；关闭时引擎对该事件直接走 `successLabel`，不弹覆盖层，照顾休闲玩家。
+- **接入**：types 加 `qte` 指令联合分支 + `GameSettings.qteEnabled`；game-engine 加 qte 状态机（`update()` 计时与超时、`enterQte`/`qteInput`/`resolveQte`/`isQteActive`/`getQteTarget`）+ `advance()` 守卫；ui-manager 绑 `onQteEnter/onQteTick/onQteProgress/onQteExit` + 覆盖层点击监听 + 键盘路由（key/mash 模式拦截 Space/指定键）+ 设置开关绑定；index.html 加 `#qte-overlay` 结构；main.css 加覆盖层/环/紧急态样式；示例故事 `story11`（tap/key/mash 三连 + cinematic 配合）。
+- **验收**：选入 story11 → 三次 QTE 依次出现 → 点中/按键/填满跳 success，不操作超时跳 fail；设置关 QTE 后三事件直接成功不触发；读档后 `once` 事件不重触。
+- **已知约束**：`story11` 为新增 digit 目录，需重启 dev 服务器（glob 编译期扫描）才会出现在故事列表。
+
+### 9.2 世界观图鉴 Codex（收集式百科）
+- **新增指令** `{ type:'codex', list:[{ id, category:'character'|'place'|'term'|'clue', title, desc, icon?, unlock? }] }` + `{ type:'codexUnlock', id }`
+- **行为**：顶栏「图鉴」入口 → `#codex-panel` 分类（角色/地点/术语/线索）列卡片；已解锁显示缩略图+名称+描述，未解锁灰显「???」+「未解锁」。
+- **接入**：types 加 `CodexDef` + `codex`/`codexUnlock` 指令；game-engine 加 `codexDefs: Map` + `unlockedCodex: Set`（序列化进 `SerializedGameState`）；ui-manager 加 `#codex-panel`（分类标签 + 卡片网格 + ??? 占位）+ 顶栏入口；可复用 `relation`/`clue` 数据少写。
+- **验收**：声明 codex → 顶栏出现入口；`codexUnlock` 后条目从 ?? 变可见；读档恢复。
+
+### 9.3 多周目路线锁 + NG+（携带好感/解锁）
+- **设计**：`SaveData`/`SerializedGameState` 加 `playthrough`（周目数）+ 保留集；通关 `end` 后标题屏提供「进入 NG+」；NG+ 重置脚本指针但保留选定变量子集（好感）+ flags 子集（解锁）；隐藏路线 `choice`/`hub` 用 `requires:'playthrough>=2'`。
+- **状态**：⏸ 写 SPEC 待实施（依赖一周目主线内容完整，避免空系统）。本期不落地。
+
+### 9.4 ⚠️ 视差分层（素材待出图，未实施）
+- 背景分 fg/mid/bg 多层 + 位移系数；`AssetManifest` 加 `layers`；`scene` 支持层。**需 krea2-scene-sheet 补前景/背景分层图**，待用户开机出图后实施。
+
+### 9.5 ⚠️ 眨眼/微表情（素材待出图，未实施）
+- `CharacterState` 加 blink 计时；renderer 叠加/切换眼睛层（或序列帧）。**需眼睛单独层素材**，待用户开机出图后实施。
 
 ---
 

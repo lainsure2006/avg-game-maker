@@ -1743,3 +1743,134 @@ body {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ========== 阶段6：QTE 快速反应覆盖层 ========== */
+#qte-overlay {
+  position: absolute;
+  inset: 0;
+  width: 1280px;
+  height: 720px;
+  z-index: 250;            /* 高于电影黑边(200)、枢纽(170)，确保演出/对话之上优先响应输入 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  background: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.0) 28%, rgba(0,0,0,0.55) 100%);
+  cursor: pointer;          /* tap 模式：点击覆盖层即视为一次输入 */
+  pointer-events: auto;
+  animation: qteIn 0.18s ease-out;
+}
+#qte-overlay.hidden { display: none; }
+
+@keyframes qteIn {
+  from { opacity: 0; transform: scale(1.04); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+#qte-ring-wrap {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  filter: drop-shadow(0 0 18px rgba(255, 120, 90, 0.35));
+}
+
+#qte-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+
+#qte-ring-bg {
+  fill: none;
+  stroke: rgba(255,255,255,0.12);
+  stroke-width: 8;
+}
+
+#qte-ring-fg {
+  fill: none;
+  stroke: #ff7a5c;          /* 紧急橙红，倒计时越短越醒目 */
+  stroke-width: 8;
+  stroke-linecap: round;
+  /* stroke-dasharray / stroke-dashoffset 由 JS 动态设置（r=54，周长≈339.29） */
+}
+
+#qte-time-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.7);
+  letter-spacing: 1px;
+}
+
+#qte-prompt {
+  font-size: 30px;
+  font-weight: bold;
+  color: #fff;
+  letter-spacing: 2px;
+  text-align: center;
+  text-shadow: 0 2px 14px rgba(0,0,0,0.8);
+  max-width: 80%;
+}
+
+#qte-instruction {
+  font-size: 17px;
+  color: rgba(255, 230, 200, 0.92);
+  letter-spacing: 1px;
+  padding: 8px 22px;
+  border: 1px solid rgba(255, 200, 140, 0.4);
+  border-radius: 999px;
+  background: rgba(40, 26, 14, 0.5);
+  animation: qtePulse 1s ease-in-out infinite;
+}
+
+@keyframes qtePulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+#qte-mash-wrap {
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+#qte-mash-wrap.hidden { display: none; }
+
+#qte-mash-track {
+  width: 100%;
+  height: 18px;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.1);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+#qte-mash-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ff7a5c, #ffd98a);
+  border-radius: 9px;
+  transition: width 0.08s linear;
+}
+
+#qte-mash-count {
+  font-size: 15px;
+  color: #ffd9b0;
+  letter-spacing: 1px;
+}
+
+/* 设置面板：QTE 总开关行 */
+#setting-qte-enabled {
+  width: 20px;
+  height: 20px;
+  accent-color: #508cdc;
+  cursor: pointer;
+}
+
+/* QTE 紧急态（剩余时间 < 1/3）：环与时间数字转红，强化紧迫感 */
+#qte-overlay.urgent #qte-ring-fg { stroke: #ff3b3b; }
+#qte-overlay.urgent #qte-time-label { color: #ff8a8a; }
+#qte-overlay.urgent #qte-instruction { border-color: rgba(255, 90, 90, 0.6); background: rgba(60, 18, 18, 0.6); }

@@ -58,6 +58,7 @@ export type ScriptCommand =
   | { type: 'hub'; title?: string; bg?: string; time: string[]; apPerPhase?: number; onEnd: string; nodes: HubNode[] }  // 阶段4：场景自选枢纽（地图节点 + 时间阶段 + 行动点）
   | { type: 'returnHub' }  // 阶段4：场景结束后回到枢纽（消耗已计入进入节点时）
   | { type: 'cinematic'; on: boolean }  // 阶段5：电影宽银幕开关（显示黑边 + 加强背景缓推）
+  | { type: 'qte'; id: string; prompt: string; duration: number; mode: 'tap' | 'key' | 'mash'; key?: string; target?: number; successLabel: string; failLabel: string; once?: boolean }  // 阶段6·QTE 快速反应事件（可关闭）
   | { type: 'end' };
 
 export interface ChoiceItem {
@@ -262,6 +263,7 @@ export interface GameSettings {
   bgmVolume: number;       // 0-100
   seVolume: number;        // 0-100
   fontSize: 'small' | 'medium' | 'large';
+  qteEnabled: boolean;     // 阶段6：QTE 快速反应事件总开关（关闭时引擎直接判定成功）
 }
 
 // ========== 首页 ==========

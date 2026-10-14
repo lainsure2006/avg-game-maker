@@ -194,6 +194,20 @@ export function parseScript(script: Record<string, unknown>[]): ScriptCommand[] 
           on: (item.on as boolean) ?? true,
         } as ScriptCommand;
 
+      case 'qte':
+        return {
+          type: 'qte',
+          id: item.id as string,
+          prompt: item.prompt as string,
+          duration: (item.duration as number) || 2,
+          mode: (item.mode as 'tap' | 'key' | 'mash') || 'tap',
+          key: item.key as string | undefined,
+          target: item.target as number | undefined,
+          successLabel: item.successLabel as string,
+          failLabel: item.failLabel as string,
+          once: (item.once as boolean) ?? false,
+        } as ScriptCommand;
+
       default:
         throw new Error(`未知指令类型: ${type} (第 ${index} 行)`);
     }

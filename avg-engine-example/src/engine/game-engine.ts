@@ -113,6 +113,18 @@ export class GameEngine {
   private waitingForChoice: boolean = false;
   private waitingForVideo: boolean = false;
   private waitingForItem: boolean = false;
+  // 阶段6：QTE 快速反应事件（限时输入；暂停对话推进直到成功/超时）
+  private waitingForQte: boolean = false;
+  private qteId: string = '';
+  private qteMode: 'tap' | 'key' | 'mash' = 'tap';
+  private qteKey: string = 'Space';
+  private qteTarget: number = 0;
+  private qteCount: number = 0;
+  private qteDuration: number = 0;
+  private qteTimeLeft: number = 0;
+  private qteSuccessLabel: string = '';
+  private qteFailLabel: string = '';
+  private qteOnce: boolean = false;
   private autoMode: boolean = false;
   private skipMode: boolean = false;
   private autoTimer: number = 0;
@@ -128,6 +140,7 @@ export class GameEngine {
     bgmVolume: 70,
     seVolume: 80,
     fontSize: 'medium',
+    qteEnabled: true,
   };
 
   // 资源清单
@@ -191,6 +204,14 @@ export class GameEngine {
   onCinematic: ((on: boolean) => void) | null = null;
   /** 阶段5：探索拾取线索时的闪光回调（UI 据此播放金色光环） */
   onPickupFlash: (() => void) | null = null;
+  /** 阶段6·QTE：进入（UI 显示覆盖层 + 倒计时环）。key 为要提示的按键名（如 'SPACE'），tap 模式为 undefined */
+  onQteEnter: ((info: { prompt: string; duration: number; mode: 'tap' | 'key' | 'mash'; target?: number; key?: string }) => void) | null = null;
+  /** 阶段6·QTE：倒计时环进度（ratio 1→0 实时刷新） */
+  onQteTick: ((ratio: number) => void) | null = null;
+  /** 阶段6·QTE：连点进度（ratio 0→1，mash 模式） */
+  onQteProgress: ((ratio: number) => void) | null = null;
+  /** 阶段6·QTE：退出（UI 隐藏覆盖层） */
+  onQteExit: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -424,6 +445,16 @@ export class GameEngine {
   private update(dt: number): void {
     // 阶段2：角色入场/退场动画推进（独立于等待计时，即使等待中也持续播放）
     this.advanceCharacterAnims(dt);
+
+    // 阶段6·QTE：限时计时与超时判定（独立于对话等待；QTE 期间角色动画仍继续播放）
+    if (this.waitingForQte) {
+      this.qteTimeLeft -= dt;
+      this.onQteTick?.(Math.max(0, this.qteTimeLeft / this.qteDuration));
+      if (this.qteTimeLeft <= 0) {
+        this.resolveQte(false);
+      }
+      return;
+    }
 
     // 等待计时器
     if (this.waitTimer > 0) {
@@ -768,6 +799,29 @@ export class GameEngine {
         break;
       }
 
+      case 'qte': {
+        // 阶段6·QTE：可关闭的限时反应事件。
+        // once 守门（flag.qte.<id>，读档安全）；设置关闭时直接成功；否则进入 QTE 状态暂停推进。
+        if (cmd.once && this.variables.hasFlag('qte.' + cmd.id)) {
+          this.commandIndex++;
+          const skip = this.labels.get(cmd.successLabel);
+          if (skip !== undefined) this.commandIndex = skip;
+          this.executeNext();
+          break;
+        }
+        if (!this.settings.qteEnabled) {
+          // 设置关闭 QTE：直接判定成功（照顾休闲玩家），不弹出覆盖层
+          this.commandIndex++;
+          const ok = this.labels.get(cmd.successLabel);
+          if (ok !== undefined) this.commandIndex = ok;
+          this.executeNext();
+          break;
+        }
+        this.commandIndex++;
+        this.enterQte(cmd);
+        break;
+      }
+
       case 'hub': {
         // 阶段4：场景自选枢纽。先跳过本指令（避免 returnHub 后再次进入），
         // 再进入枢纽并暂停主脚本推进，直到节点跳转 / onEnd 收尾。
@@ -1046,6 +1100,7 @@ export class GameEngine {
     if (!this.running) return;
     if (this.waitingForChoice) return; // 等待选择
     if (this.waitingForHub) return;     // 阶段4：枢纽激活时点击节点由 UI 处理，画布点击不推进
+    if (this.waitingForQte) return;     // 阶段6：QTE 进行中，画布点击不推进（tap/key/mash 由 UI 层各自处理）
 
     // 视频过场中：点击 = 跳过，恢复命令循环
     if (this.waitingForVideo) {
@@ -1238,6 +1293,61 @@ export class GameEngine {
       return d;
     }
     return null;
+  }
+
+  // ========== 阶段6：QTE 快速反应事件 ==========
+  /** 是否处于 QTE 激活态（供 UI 判断输入路由） */
+  isQteActive(): boolean {
+    return this.waitingForQte;
+  }
+
+  /** 当前 QTE 连点目标次数（mash 模式 UI 显示用） */
+  getQteTarget(): number {
+    return this.qteTarget;
+  }
+
+  /** 进入 QTE（由 `qte` 指令调用；暂停脚本推进直到输入成功/超时失败） */
+  private enterQte(d: { id: string; prompt: string; duration: number; mode: 'tap' | 'key' | 'mash'; key?: string; target?: number; successLabel: string; failLabel: string; once?: boolean }): void {
+    this.waitingForQte = true;
+    this.qteId = d.id;
+    this.qteMode = d.mode;
+    this.qteKey = (d.key || 'Space').toUpperCase();
+    this.qteTarget = d.target ?? 0;
+    this.qteCount = 0;
+    this.qteDuration = d.duration;
+    this.qteTimeLeft = d.duration;
+    this.qteSuccessLabel = d.successLabel;
+    this.qteFailLabel = d.failLabel;
+    this.qteOnce = !!d.once;
+    this.onQteEnter?.({ prompt: d.prompt, duration: d.duration, mode: d.mode, target: d.target, key: this.qteKey });
+  }
+
+  /** 玩家在 QTE 期间输入（点击/按键/连点）。引擎按模式判定成功。 */
+  qteInput(): void {
+    if (!this.waitingForQte) return;
+    if (this.qteMode === 'mash') {
+      this.qteCount++;
+      this.onQteProgress?.(Math.min(1, this.qteCount / Math.max(1, this.qteTarget)));
+      if (this.qteCount >= Math.max(1, this.qteTarget)) this.resolveQte(true);
+    } else {
+      this.resolveQte(true);
+    }
+  }
+
+  /** 解析 QTE 结果（成功跳 successLabel，失败/超时跳 failLabel）；once 则置守门 flag。 */
+  private resolveQte(success: boolean): void {
+    if (!this.waitingForQte) return;
+    this.waitingForQte = false;
+    if (this.qteOnce) this.variables.setFlag('qte.' + this.qteId);
+    this.onQteExit?.();
+    const label = success ? this.qteSuccessLabel : this.qteFailLabel;
+    const idx = this.labels.get(label);
+    if (idx !== undefined) {
+      this.commandIndex = idx;
+    } else {
+      this.commandIndex++; // 标签缺失则跳过本指令继续
+    }
+    this.executeNext();
   }
 
   // ========== 阶段3：探索模式 ==========

@@ -97,6 +97,10 @@
               <option value="large">大</option>
             </select>
           </div>
+          <div class="setting-row">
+            <label>快速反应事件 (QTE)</label>
+            <input type="checkbox" id="setting-qte-enabled" checked />
+          </div>
         </div>
       </div>
       <!-- 故事选择面板 -->
@@ -206,6 +210,22 @@
           </div>
         </div>
         <div id="hub-locked-toast" class="hidden"></div>
+      </div>
+      <!-- 阶段6：QTE 快速反应覆盖层（限时点击/按键/连点） -->
+      <div id="qte-overlay" class="hidden">
+        <div id="qte-ring-wrap">
+          <svg id="qte-ring" viewBox="0 0 120 120">
+            <circle id="qte-ring-bg" cx="60" cy="60" r="54" />
+            <circle id="qte-ring-fg" cx="60" cy="60" r="54" />
+          </svg>
+          <div id="qte-time-label"></div>
+        </div>
+        <div id="qte-prompt"></div>
+        <div id="qte-instruction"></div>
+        <div id="qte-mash-wrap" class="hidden">
+          <div id="qte-mash-track"><div id="qte-mash-fill"></div></div>
+          <div id="qte-mash-count"></div>
+        </div>
       </div>
     </div>
   </div>
