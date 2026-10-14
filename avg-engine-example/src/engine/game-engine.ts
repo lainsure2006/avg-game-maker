@@ -112,6 +112,8 @@ export class GameEngine {
   // 状态
   private characters: Map<string, CharacterState> = new Map();
   private characterImages: Map<string, HTMLImageElement> = new Map();
+  // 阶段6·眨眼：闭眼覆盖层缓存（key `${charId}_${pose}`，按命名约定 `<sprite>_blink.png` 加载）
+  private characterBlink: Map<string, HTMLImageElement> = new Map();
   private backlog: BacklogEntry[] = [];
   private running: boolean = false;
   private waitingForClick: boolean = false;
@@ -146,6 +148,7 @@ export class GameEngine {
     seVolume: 80,
     fontSize: 'medium',
     qteEnabled: true,
+    blinkEnabled: false, // 阶段6·眨眼：默认挂起。真实系小眼几乎不可见；代码与 9 张覆盖层保留，待二次元大眼项目启用。
   };
 
   // 资源清单
@@ -280,6 +283,24 @@ export class GameEngine {
       }
     }
 
+    // 阶段6·眨眼：按命名约定 `<sprite>_blink.png` 预加载「闭眼覆盖层」。
+    // 存在则缓存（key 与立绘一致）；缺失静默跳过（该角色/姿态不眨眼），不影响流程。
+    if (this.settings.blinkEnabled !== false) {
+      const tasks: Promise<void>[] = [];
+      for (const [charId, spriteSet] of Object.entries(manifest.sprites)) {
+        for (const [pose, url] of Object.entries(spriteSet)) {
+          const blinkUrl = url.replace(/\.png(\?.*)?$/i, '_blink.png$1');
+          if (blinkUrl === url) continue;
+          tasks.push(
+            this.assets.ensureImage(blinkUrl).then(img => {
+              if (img && img.width > 0) this.characterBlink.set(`${charId}_${pose}`, img);
+            })
+          );
+        }
+      }
+      await Promise.all(tasks);
+    }
+
     // 注册序列帧动画
     for (const [animId, animDef] of Object.entries(manifest.animations)) {
       const frames: HTMLImageElement[] = [];
@@ -377,9 +398,18 @@ export class GameEngine {
     // 恢复场景
     if (state.scene.bg && this.manifest) {
       const bgUrl = this.manifest.backgrounds[state.scene.bg];
-      if (bgUrl) {
-        const img = this.assets.getImage(bgUrl);
-        this.renderer.setBackground(img || null, 'none');
+      const px = this.manifest.parallax?.[state.scene.bg];
+      if (px) {
+        const stack = this.buildParallaxStack(px);
+        if (stack) {
+          this.renderer.setParallaxStack(stack, 'none');
+          this.currentBgId = state.scene.bg;
+        } else if (bgUrl) {
+          this.renderer.setBackground(this.assets.getImage(bgUrl) || null, 'none');
+          this.currentBgId = state.scene.bg;
+        }
+      } else if (bgUrl) {
+        this.renderer.setBackground(this.assets.getImage(bgUrl) || null, 'none');
         this.currentBgId = state.scene.bg;
       }
     }
@@ -401,6 +431,10 @@ export class GameEngine {
         enterT: 1,
         exitT: 0,
         enterDir: 0,
+        blink: false,
+        blinkNext: 1.2 + Math.random() * 3.5,
+        blinkT: 0,
+        blinkDur: 0.16,
       });
     }
 
@@ -460,6 +494,9 @@ export class GameEngine {
   private update(dt: number): void {
     // 阶段2：角色入场/退场动画推进（独立于等待计时，即使等待中也持续播放）
     this.advanceCharacterAnims(dt);
+
+    // 阶段6·眨眼：推进每个可见角色的眨眼计时（独立于等待计时）
+    this.advanceBlinks(dt);
 
     // 阶段6·QTE：限时计时与超时判定（独立于对话等待；QTE 期间角色动画仍继续播放）
     if (this.waitingForQte) {
@@ -554,8 +591,54 @@ export class GameEngine {
       const popScale = 0.92 + 0.08 * easeIn;           // 入场缩放弹入（最终归 1.0）
 
       const breathPhase = hashPhase(char.id);
-      this.renderer.drawCharacterAuto(img, xRatio, maxWRatio, alpha, breathPhase, popScale);
+      // 阶段6·眨眼：闭眼覆盖层（若存在且处于眨眼帧）与原立绘在同尺寸/同变换下叠加
+      const blinkImg = char.blink ? (this.characterBlink.get(imgKey) ?? null) : null;
+      const blinkAlpha = blinkImg ? this.blinkOverlayAlpha(char) : 1;
+      this.renderer.drawCharacterAuto(img, xRatio, maxWRatio, alpha, breathPhase, popScale, blinkImg, blinkAlpha);
     }
+  }
+
+  /**
+   * 阶段6·眨眼：推进每个可见角色的眨眼计时。
+   * 每帧调用（独立于等待/自动/跳过状态），使角色在待机与对话中都随机眨眼。
+   * 节奏：随机间隔 1.8~6.0s 眨一次，单次闭合约 0.16s。
+   */
+  private advanceBlinks(dt: number): void {
+    if (this.settings.blinkEnabled === false) {
+      // 关闭眨眼：复位任何停在闭眼帧的角色，避免永久闭眼
+      for (const c of this.characters.values()) {
+        if (c.blink) { c.blink = false; c.blinkT = 0; }
+      }
+      return;
+    }
+    for (const c of this.characters.values()) {
+      if (!c.visible) continue;
+      if (!c.blink) {
+        c.blinkNext = (c.blinkNext ?? 2.0) - dt;
+        if (c.blinkNext <= 0) {
+          c.blink = true;
+          c.blinkT = 0;
+          c.blinkDur = 0.16;
+        }
+      } else {
+        c.blinkT = (c.blinkT ?? 0) + dt;
+        if (c.blinkT >= (c.blinkDur ?? 0.16)) {
+          c.blink = false;
+          c.blinkT = 0;
+          c.blinkNext = 1.8 + Math.random() * 4.2; // 下次眨眼间隔
+        }
+      }
+    }
+  }
+
+  /** 阶段6·眨眼：本次眨眼覆盖层的透明度（快速闭合/张开，避免生硬弹跳） */
+  private blinkOverlayAlpha(c: CharacterState): number {
+    const dur = c.blinkDur ?? 0.16;
+    const t = c.blinkT ?? 0;
+    const ramp = 0.035;
+    if (t < ramp) return t / ramp;                 // 闭眼过渡
+    if (t > dur - ramp) return Math.max(0, (dur - t) / ramp); // 睁眼过渡
+    return 1;
   }
 
   /**
@@ -608,13 +691,30 @@ export class GameEngine {
     this.executeCommand(cmd);
   }
 
+  /** 阶段6·视差：由 manifest.parallax 定义构建多层背景栈（层未就绪返回 null 降级单图层） */
+  private buildParallaxStack(px: { layers: string[]; factors: number[] }): { img: HTMLImageElement; factor: number }[] | null {
+    if (!this.assets) return null;
+    const imgs = px.layers.map(u => this.assets!.getImage(u));
+    if (imgs.some(i => !i)) return null;
+    return px.layers.map((u, i) => ({
+      img: this.assets!.getImage(u)!,
+      factor: px.factors[i] ?? (i / Math.max(1, px.layers.length - 1)),
+    }));
+  }
+
   /** 执行单条指令 */
   private async executeCommand(cmd: ScriptCommand): Promise<void> {
     switch (cmd.type) {
       case 'scene': {
         if (!this.manifest) break;
+        this.renderer.setParallaxEnabled(this.settings.parallaxEnabled ?? true);
         const bgUrl = this.manifest.backgrounds[cmd.bg];
-        if (bgUrl) {
+        const px = this.manifest.parallax?.[cmd.bg];
+        const stack = px ? this.buildParallaxStack(px) : null;
+        if (stack) {
+          await this.renderer.setParallaxStack(stack, cmd.transition);
+          this.currentBgId = cmd.bg;
+        } else if (bgUrl) {
           const img = this.assets.getImage(bgUrl);
           await this.renderer.setBackground(img || null, cmd.transition);
           this.currentBgId = cmd.bg;
@@ -677,6 +777,10 @@ export class GameEngine {
               enterT: 0,
               exitT: 0,
               enterDir,
+              blink: false,
+              blinkNext: 1.2 + Math.random() * 3.5,
+              blinkT: 0,
+              blinkDur: 0.16,
             });
             break;
           }

@@ -58,7 +58,7 @@
   ↓
 阶段5  动画/特效润色（宽银幕/拾取闪光/立绘弹入）        ← ✅ 已完成（验收通过）
   ↓
-阶段6  QTE（✅已完成）· 世界观图鉴（✅已完成）· 多周目（纯引擎·待实施）· 视差/眨眼（⚠️素材待出图）
+阶段6  QTE（✅已完成）· 世界观图鉴（✅已完成）· 视差（✅已完成·2026-10-14 用户实测通过）· 眨眼（⏸️挂起·程序化眼睑已实现，真实系小眼不可见，留待二次元项目）· 多周目（纯引擎·SPEC 待实施）
 ```
 
 ---
@@ -300,22 +300,71 @@ interface HubDef {
 - **验收**：选入 story11 → 三次 QTE 依次出现 → 点中/按键/填满跳 success，不操作超时跳 fail；设置关 QTE 后三事件直接成功不触发；读档后 `once` 事件不重触。
 - **已知约束**：`story11` 为新增 digit 目录，需重启 dev 服务器（glob 编译期扫描）才会出现在故事列表。
 
-### 9.2 世界观图鉴 Codex（收集式百科） ✅ 已完成（2026-10-14 验收待用户实测）
+### 9.2 世界观图鉴 Codex（收集式百科） ✅ 已完成（2026-10-14 验收通过）
 - **新增指令** `{ type:'codex', list:[{ id, category:'character'|'place'|'term'|'clue', title, desc, icon? }] }` + `{ type:'codexUnlock', id }`
 - **行为**：顶栏「图鉴」入口 → `#codex-panel` 分类标签（角色/地点/术语/线索，各标签显示「已解锁/总数」）→ 卡片网格；已解锁显示图标+名称+描述，未解锁灰显「?」+「未解锁 · 继续探索以揭示」。解锁时顶栏角标 +1 并弹瞬时提示。
 - **接入**：types 加 `CodexDef` + `codex`/`codexUnlock` 指令 + `SerializedGameState.unlockedCodex`；game-engine 加 `codexDefs: Map` + `unlockedCodex: Set`（init 预扫描 codex 声明；`codexUnlock` 置集合 + 回调 `onCodexUnlocked`；`getSaveState`/`restoreFromSave` 序列化）；ui-manager 加 `#codex-panel`（分类标签 + 卡片网格 + ??? 占位）+ 顶栏「图鉴」入口 + 角标 + 键盘 Esc 关闭 + keydown 守卫；index.html 加按钮与面板；main.css 加样式。
 - **验收**：story11 含 codex 声明（3 条）与 3 处解锁 → 顶栏出现「图鉴」入口且角标随解锁递增 1→2→3；打开面板分类切换正常，未解锁条目显 ???；读档后解锁状态恢复。
 - **已知约束**：`story11` 为新增 digit 目录，需重启 dev 服务器才会出现在故事列表。
 
-### 9.3 多周目路线锁 + NG+（携带好感/解锁）
-- **设计**：`SaveData`/`SerializedGameState` 加 `playthrough`（周目数）+ 保留集；通关 `end` 后标题屏提供「进入 NG+」；NG+ 重置脚本指针但保留选定变量子集（好感）+ flags 子集（解锁）；隐藏路线 `choice`/`hub` 用 `requires:'playthrough>=2'`。
-- **状态**：⏸ 写 SPEC 待实施（依赖一周目主线内容完整，避免空系统）。本期不落地。
+### 9.3 多周目路线锁 + NG+（携带好感/解锁）— SPEC 已完成，⏸ 编码待一周目主线完整
+> 本期只写 SPEC，不落地代码。原因：NG+ 的「隐藏路线」必须有真实的一周目分支点才能演示，否则是空系统。待《樱色未央》22 章 / 《缄默回廊》主线成型后，按本 SPEC 编码并配示例故事实测。
 
-### 9.4 ⚠️ 视差分层（素材待出图，未实施）
-- 背景分 fg/mid/bg 多层 + 位移系数；`AssetManifest` 加 `layers`；`scene` 支持层。**需 krea2-scene-sheet 补前景/背景分层图**，待用户开机出图后实施。
+#### 9.3.1 目标
+通关后开启二周目（可累加到 N 周目），保留部分进度（好感度 / 关键解锁 / 图鉴），并解锁隐藏选项或隐藏枢纽节点，形成 replay 价值。
+
+#### 9.3.2 数据模型（types.ts）
+- `SerializedGameState` 增加：
+  - `playthrough: number` —— 当前周目（首轮为 1）。
+  - `ngCarry: { relations: Record<string, number>; flags: string[]; codex: string[]; endings: string[] }` —— 跨周目携带子集。
+- `StoryDef` 增加可选 `ngPlus?: { carryRelations?: string[]; carryFlags?: string[]; hiddenRoutesRequire?: number }` —— 声明本作允许 NG+ 且携带哪些变量。
+- `ScriptCommand`：`choice` 选项 / `hub` 节点增加可选 `requires?: { playthrough?: number; flags?: string[] }` —— 周目 / flag 门。
+
+#### 9.3.3 引擎（game-engine.ts）
+- 状态：`this.playthrough`（从存档恢复；新游戏默认 1）。
+- `end` 指令：若当前 story 的 `ngPlus` 存在 → 置 `canNgPlus = true`，标题屏「进入 NG+」按钮可用。
+- `enterNgPlus()`：
+  1. `playthrough += 1`；
+  2. 收集 `ngCarry`：relations 取 `carryRelations` 名单当前值；flags 取 `carryFlags` 名单中已置位的；codex 全量保留（图鉴本就该跨周目保留）；endings 累加；
+  3. 重置：commandIndex=0、临时 flag、choice/hub 运行时状态、QTE once 集合；
+  4. 恢复 carry：写回 relations/flags；
+  5. 重新 `init`（扫描 def）并从 start 重跑。
+- `requires` 门：`choice`/`hub` 渲染前过滤不符合 `requires`（周目不足 / flag 未满足）的选项或节点 —— 灰显 + 锁图标 + tooltip「需第 N 周目 / 需达成 X」。
+- 序列化：`getSaveState` 写 `playthrough`/`ngCarry`；`restoreFromSave` 恢复；NG+ 后生成新存档槽（周目数写入槽名）。
+
+#### 9.3.4 UI（ui-manager.ts / index.html / main.css）
+- 标题屏：当 `canNgPlus` 时显示「进入 NG+」按钮（二周目及以上显示「进入第 N 周目」）。
+- 顶栏 / 存档面板：显示当前周目数。
+- `requires` 未满足的选项：灰显 + 🔒 + tooltip「需第 N 周目」。
+
+#### 9.3.5 接入清单（编码期）
+- types：`SerializedGameState.playthrough`/`ngCarry`、`StoryDef.ngPlus`、`choice`/`hub` 的 `requires`。
+- game-engine：`playthrough` 字段 + `enterNgPlus` + `end` 改造 + `requires` 过滤 + 序列化。
+- ui-manager：NG+ 按钮 + 周目显示 + 锁提示。
+- 示例：待一周目主线完整后，选一个明确分支点做 `requires: { playthrough: 2 }` 的隐藏选项演示（建议放《樱色未央》或《缄默回廊》真实分支，而非 story11 占位）。
+
+#### 9.3.6 验收（编码后）
+- 一周目通关 → 标题屏出现「进入 NG+」；进入后周目=2、好感/解锁保留、隐藏选项出现；读档周目数恢复；三周目仍能继续累加。
+
+- **状态**：⏸ SPEC 已完成（2026-10-14），编码待一周目主线完整后落地。
+
+### 9.4 ✅ 视差（已完成 2026-10-14，用户实测）
+- **实现路径**：放弃「krea2 真分层」，改走**「单图 + 深度伪分层」**——每场景用 `DepthAnythingV2Preprocessor` 出深度图，按深度阈值切成 far/mid/near 三层（近层位移大、远层小），露缝由底图兜住。
+- `AssetManifest` 加 `parallax?: Record<string, ParallaxDef>`（layers + factors）；`GameSettings.parallaxEnabled?`。`renderer.ts` 加 `setParallaxStack/setParallaxEnabled` + `renderParallax/drawParallaxLayer`（factor 偏移 + 空闲呼吸 + 鼠标视差 + overscan 防露边 + 层组淡入淡出）；`game-engine.ts` 的 `scene` 与读档恢复均接入，层未就绪自动降级单图层。
+- 4 场景（走廊/大厅/病房/庭院）底图 + 深度 + 12 张视差层已落 `public/images/bg/jianmo/parallax/`；切层脚本 `comfy_stage6/prep_parallax.py`。
+- 演示：`story12「视差演示」`。
+- 素材清单 → 见 `STAGE6_PARALLAX_BLINK_ASSETS.md`（一）。
+
+### 9.5 ⏸️ 眨眼（已实现 2026-10-14·程序化眼睑，2026-10-14 末用户决定「挂起」）
+- **实现路径**：本实例（CloudStudio）**无任何 edit 模型**，qwen-image 2.1 基座无法做保身份局部编辑（闭眼），故放弃扩散路线，改走**「程序化眼睑」**：用 Pillow 由 alpha 轮廓几何（bbox + 颈部收窄，失败按 bbox×0.25 钳制）+ 头部质心定位双眼，采样颊部肤色生成**闭眼覆盖层** `<sprite>_blink.png`（仅眼睛区不透明、羽化），引擎在眨眼帧以**同尺寸/同变换**叠加到原立绘上（100% 对齐、无 GPU、确定性）。
+- 生成器 `comfy_stage6/make_blink.py`；9 张覆盖层（gucheng×4 / sulan×2 / yanxi×2 / laok×1）。
+- `CharacterState` 加 `blink/blinkNext/blinkT/blinkDur`；`GameSettings.blinkEnabled`；`game-engine.advanceBlinks`（随机 1.8~6.0s 眨一次，单次 ~0.16s，含闭合/张开过渡）+ 按命名约定预加载 + `drawAllCharacters` 叠加；`renderer.drawCharacterAuto` 加 `blinkOverlay/blinkAlpha`；`asset-loader.ensureImage`；设置面板加「立绘眨眼」开关。
+- **⏸️ 挂起原因（2026-10-14 末）**：实测真实系（photoreal）小眼，眨眼眼罩几乎不可见，观感收益过低。用户判定**「真实系眼睛小、二次元大眼才显效果」**——故**保留全部代码与 9 张覆盖层、默认关闭 `blinkEnabled=false`、演示剧本撤除眨眼展示段**，留待未来**二次元大眼项目**一键启用。设置面板「立绘眨眼」开关保留（关着），可随时勾选复验。
+- 素材清单 → 见 `STAGE6_PARALLAX_BLINK_ASSETS.md`（二）。
 
 ### 9.5 ⚠️ 眨眼/微表情（素材待出图，未实施）
 - `CharacterState` 加 blink 计时；renderer 叠加/切换眼睛层（或序列帧）。**需眼睛单独层素材**，待用户开机出图后实施。
+- 素材清单与开机出图流程 → 见 `STAGE6_PARALLAX_BLINK_ASSETS.md`（二、眨眼素材）。
 
 ---
 

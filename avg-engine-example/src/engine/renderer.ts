@@ -194,6 +194,17 @@ export class Renderer {
   private isTransitioning: boolean = false;
   private transitionResolve: (() => void) | null = null;
 
+  // 阶段6·视差（深度伪分层）：多层背景按深度因子偏移 + 空闲呼吸 + 鼠标视差
+  private parallax: { img: HTMLImageElement; factor: number }[] | null = null;
+  private prevParallax: { img: HTMLImageElement; factor: number }[] | null = null;
+  private parallaxT: number = 0;
+  private parallaxProgress: number = 1;
+  private parallaxTransitioning: boolean = false;
+  private pResolve: (() => void) | null = null;
+  private mouseNX: number = 0;
+  private mouseNY: number = 0;
+  private parallaxOn: boolean = true;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
@@ -201,6 +212,10 @@ export class Renderer {
     this.particles.setSize(this.width, this.height);
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    window.addEventListener('pointermove', (e: PointerEvent) => {
+      this.mouseNX = (e.clientX / window.innerWidth) * 2 - 1;
+      this.mouseNY = (e.clientY / window.innerHeight) * 2 - 1;
+    });
   }
 
   /** 响应窗口大小变化 */
@@ -240,6 +255,10 @@ export class Renderer {
   /** 设置背景 */
   setBackground(image: HTMLImageElement | null, transition: TransitionType = 'fade'): Promise<void> {
     this.kbT = 0; // 每个场景重新从静止开始缓慢推镜
+    // 阶段6·视差：切换到单图层背景时清空视差层组
+    this.parallax = null;
+    this.prevParallax = null;
+    this.parallaxTransitioning = false;
     if (!image) {
       this.bgImage = null;
       return Promise.resolve();
@@ -263,6 +282,35 @@ export class Renderer {
       this.isTransitioning = true;
       this.transitionResolve = resolve;
     });
+  }
+
+  /** 阶段6·视差：设置多层背景（far->near），可带层组淡入淡出转场 */
+  setParallaxStack(stack: { img: HTMLImageElement; factor: number }[] | null, transition: TransitionType = 'fade'): Promise<void> {
+    this.kbT = 0;
+    if (!stack || stack.length === 0) {
+      this.parallax = null;
+      this.prevParallax = null;
+      this.parallaxTransitioning = false;
+      return Promise.resolve();
+    }
+    if (!this.parallax || transition === 'none') {
+      this.parallax = stack;
+      this.prevParallax = null;
+      this.parallaxTransitioning = false;
+      return Promise.resolve();
+    }
+    return new Promise(resolve => {
+      this.prevParallax = this.parallax;
+      this.parallax = stack;
+      this.parallaxProgress = 0;
+      this.parallaxTransitioning = true;
+      this.pResolve = resolve;
+    });
+  }
+
+  /** 阶段6·视差：总开关（空闲呼吸 + 鼠标视差） */
+  setParallaxEnabled(on: boolean): void {
+    this.parallaxOn = on;
   }
 
   /** 每帧更新 */
@@ -306,6 +354,20 @@ export class Renderer {
     this.elapsed += dt;
     if (!this.isTransitioning) {
       this.kbT += dt;
+    }
+    // 阶段6·视差：时间累计（即使转场中也推进，使偏移持续运动）
+    if (this.parallax && this.parallaxOn) {
+      this.parallaxT += dt;
+    }
+    if (this.parallaxTransitioning) {
+      this.parallaxProgress += dt * 2;
+      if (this.parallaxProgress >= 1) {
+        this.parallaxProgress = 1;
+        this.parallaxTransitioning = false;
+        this.prevParallax = null;
+        this.pResolve?.();
+        this.pResolve = null;
+      }
     }
     // 强调 zoom 镜头推拉计时
     if (this.zoomTime > 0) {
@@ -367,9 +429,15 @@ export class Renderer {
   /** 渲染背景 */
   private renderBackground(ctx: CanvasRenderingContext2D): void {
     // 无背景：深色填充
-    if (!this.bgImage) {
+    if (!this.bgImage && !this.parallax) {
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(0, 0, this.width, this.height);
+      return;
+    }
+
+    // 阶段6·视差：多层背景按深度因子偏移 + 空闲呼吸 + 鼠标视差
+    if (this.parallax && this.parallaxOn) {
+      this.renderParallax(ctx);
       return;
     }
 
@@ -465,6 +533,40 @@ export class Renderer {
     const oy = Math.cos(this.kbT * 0.03) * this.height * 0.01 * amp;
     ctx.translate(this.width / 2 + ox, this.height / 2 + oy);
     ctx.scale(s, s);
+    ctx.translate(-this.width / 2, -this.height / 2);
+    this.drawImageCover(ctx, img, alpha);
+    ctx.restore();
+  }
+
+  /** 阶段6·视差：渲染多层背景（far->near 顺序，按 factor 偏移） */
+  private renderParallax(ctx: CanvasRenderingContext2D): void {
+    const stack = this.parallax!;
+    const t = this.parallaxT;
+    const idleX = Math.sin(t * 0.18) * this.width * 0.004;   // 极轻微空闲呼吸
+    const idleY = Math.cos(t * 0.13) * this.height * 0.003;
+    const mouseX = this.mouseNX * this.width * 0.012;          // 鼠标视差幅度
+    const mouseY = this.mouseNY * this.height * 0.010;
+    const draw = (layer: { img: HTMLImageElement; factor: number }, alpha: number) => {
+      const f = layer.factor;
+      this.drawParallaxLayer(ctx, layer.img, (idleX + mouseX) * f, (idleY + mouseY) * f, alpha);
+    };
+    if (this.parallaxTransitioning && this.prevParallax) {
+      const p = this.parallaxProgress;
+      for (const l of this.prevParallax) draw(l, 1 - p);
+      for (const l of stack) draw(l, p);
+    } else {
+      for (const l of stack) draw(l, 1);
+    }
+  }
+
+  /** 阶段6·视差：绘制单层（带 overscan 防位移露边 + 轻微 Ken Burns 缓推） */
+  private drawParallaxLayer(ctx: CanvasRenderingContext2D, img: HTMLImageElement, ox: number, oy: number, alpha: number): void {
+    ctx.save();
+    const baseScale = 1.06; // overscan 防位移露边
+    const kb = 0.03 * (0.5 - 0.5 * Math.cos(this.kbT * 0.06)) * (this.cinematicMode ? 1.6 : 1);
+    const sc = baseScale + kb;
+    ctx.translate(this.width / 2 + ox, this.height / 2 + oy);
+    ctx.scale(sc, sc);
     ctx.translate(-this.width / 2, -this.height / 2);
     this.drawImageCover(ctx, img, alpha);
     ctx.restore();
@@ -630,7 +732,9 @@ export class Renderer {
     maxWRatio: number,
     alpha: number = 1,
     breathPhase: number = 0,
-    popScale: number = 1
+    popScale: number = 1,
+    blinkOverlay: HTMLImageElement | null = null,
+    blinkAlpha: number = 1
   ): void {
     const ctx = this.ctx;
 
@@ -675,6 +779,11 @@ export class Renderer {
     }
     ctx.globalAlpha = alpha;
     ctx.drawImage(image, drawX, drawY, popW, breatheH);
+    // 阶段6·眨眼：闭眼覆盖层在原同尺寸/同变换下叠加（像素级对齐，无位移）
+    if (blinkOverlay && blinkAlpha > 0.01) {
+      ctx.globalAlpha = alpha * blinkAlpha;
+      ctx.drawImage(blinkOverlay, drawX, drawY, popW, breatheH);
+    }
     ctx.globalAlpha = 1;
     ctx.restore();
   }

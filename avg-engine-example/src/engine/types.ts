@@ -10,12 +10,19 @@ export interface AssetManifest {
   audio: Record<string, string>;             // id -> url
   videos?: Record<string, string>;           // id -> url（视频过场，按需加载，不预载）
   items?: Record<string, ItemDef>;           // id -> 物件（证物/信件/照片等放大图）
+  parallax?: Record<string, ParallaxDef>;    // 阶段6·视差：bg id -> 多层背景定义
 }
 
 /** 物件定义（弹出式放大图，无需专门背景） */
 export interface ItemDef {
   src: string;          // 图片地址（建议放 public/images/items/）
   caption?: string;     // 可选标题，如「匿名信·第七封」
+}
+
+/** 阶段6·视差：单场景的多层背景定义（far -> near 顺序） */
+export interface ParallaxDef {
+  layers: string[];    // 各层图片 URL（顺序：远景 -> 近景）
+  factors: number[];   // 每层位移因子（远景小、近景大，决定视差强度）
 }
 
 export interface SpriteSet {
@@ -225,6 +232,11 @@ export interface CharacterState {
   enterT: number;      // 入场进度 0..1（1=完全就位）
   exitT: number;       // 退场进度 0..1（1=完全离场）
   enterDir: number;    // 入场滑入方向：-1 从左, 1 从右, 0 仅淡入
+  // 阶段6·眨眼：程序化眼睑（闭眼覆盖层叠加，无 GPU、与原立绘 100% 对齐）
+  blink?: boolean;     // 当前是否处于闭眼帧
+  blinkNext?: number;  // 距下次眨眼的秒数
+  blinkT?: number;     // 本次眨眼已过时长（秒）
+  blinkDur?: number;   // 本次眨眼总时长（秒）
 }
 
 export interface BacklogEntry {
@@ -276,6 +288,8 @@ export interface GameSettings {
   seVolume: number;        // 0-100
   fontSize: 'small' | 'medium' | 'large';
   qteEnabled: boolean;     // 阶段6：QTE 快速反应事件总开关（关闭时引擎直接判定成功）
+  parallaxEnabled?: boolean; // 阶段6：背景视差总开关（空闲呼吸 + 鼠标视差）
+  blinkEnabled: boolean;   // 阶段6：立绘眨眼总开关（程序化眼睑）
 }
 
 // ========== 首页 ==========

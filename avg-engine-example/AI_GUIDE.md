@@ -90,24 +90,34 @@ sprites: {
 
 | 指令 | 格式 | 说明 |
 |------|------|------|
-| `scene` | `{ type:'scene', bg:'key', transition?:'fade', grade?:'none', weather?:'none' }` | 切换背景。transition 可选 fade/slide-left/slide-right/none/iris/dissolve/flash（7 值）；grade 可选 none/warm/cold/soft/dusk（5 值）；weather 可选 none/petal/rain/snow/bokeh（5 值） |
-| `char` | `{ type:'char', action:'show'\|'hide'\|'move', id:'角色', position:'left'\|'center'\|'right', pose:'pose名' }` | 控制角色显示 |
-| `dialog` | `{ type:'dialog', speaker:'说话人', text:'内容' }` | 角色对话 |
-| `narration` | `{ type:'narration', text:'内容' }` | 旁白/描述 |
-| `choice` | `{ type:'choice', choices:[{ text:'选项', label:'标签' }] }` | 选项分支 |
-| `jump` | `{ type:'jump', label:'标签' }` | 跳转到标签 |
-| `label` | `{ type:'label', id:'标签名' }` | 定义跳转目标 |
-| `set` | `{ type:'set', variable:'变量', value:数值, op?:'+=' }` | 修改变量，op 默认 `=` |
-| `if` | `{ type:'if', condition:'表达式', trueLabel:'真', falseLabel:'假' }` | 条件分支 |
-| `wait` | `{ type:'wait', duration:秒数 }` | 暂停 |
-| `end` | `{ type:'end' }` | 游戏结束 |
-| `bgm` | `{ type:'bgm', action:'play'\|'stop'\|'fadeout', id:'key', duration?:秒 }` | 背景音乐 |
-| `se` | `{ type:'se', id:'key' }` | 音效 |
-| `effect` | `{ type:'effect', effect:'shake'\|'flash'\|'dim'\|'zoom'\|'rain'\|'snow'\|'petal'\|'bokeh', duration?:秒 }` | 屏幕特效（全部 8 值均已实现并驱动渲染器，详见 references/engine-asset-catalog.md） |
-| `anim` | `{ type:'anim', action:'play'\|'stop', id:'序列帧key', position?:'left'\|'center'\|'right' }` | 序列帧动画；id 对应 manifest.animations（frames/frameRate/loop）。定位用 position（target 字段未接线） |
-| `unlock` | `{ type:'unlock', ending:'结局id' }` | 解锁结局收集；ending 对应 StoryDef.endings[].id |
-| `video` | `{ type:'video', id:'视频key' }` | 全屏视频过场：DOM `<video>` 覆盖播放，点击跳过，404/自动播放被拦截时自动结束不崩溃；id 对应 manifest.videos[key]；**可被快进模式跳过** |
-| `item` | `{ type:'item', id:'物件key' }` | 物件弹出放大图（证物/信件/照片）：半透明全屏覆盖层，居中放大+可选标题，点击关闭；404 显示「物件图片缺失」占位但仍可关闭；id 对应 manifest.items[key]；**不会被快进模式跳过**，强制玩家查看 |
+| `scene` | `{ type:'scene', bg:'key', transition?, grade?, weather? }` | 切换背景。transition: fade/slide-left/slide-right/none/iris/dissolve/flash；grade(调色): none/warm/cold/soft/dusk；weather(天气): none/petal/rain/snow/bokeh。**若 `bg` 在 `manifest.parallax` 中有定义，自动启用多层视差** |
+| `char` | `{ type:'char', action:'show'\|'hide'\|'move', id, position?:'left'\|'center'\|'right', pose?, expression? }` | 角色显隐/移动 |
+| `dialog` | `{ type:'dialog', speaker, text, expression? }` | 角色对话 |
+| `narration` | `{ type:'narration', text }` | 旁白 |
+| `choice` | `{ type:'choice', choices:[{ text, label, condition? }] }` | 选项分支（可选 `condition` 控制显隐） |
+| `jump` / `label` | `{ type:'jump', label }` / `{ type:'label', id }` | 跳转 / 跳转锚点 |
+| `set` | `{ type:'set', variable, value, op?:'='\|'+='\|'-=' }` | 变量赋值，op 默认 `=` |
+| `if` | `{ type:'if', condition, trueLabel, falseLabel }` | 条件分支 |
+| `wait` | `{ type:'wait', duration }` | 暂停（秒） |
+| `end` | `{ type:'end' }` | 结束 |
+| `bgm` | `{ type:'bgm', action:'play'\|'stop'\|'fadeout', id?, duration? }` | 背景音乐 |
+| `se` | `{ type:'se', id }` | 音效 |
+| `effect` | `{ type:'effect', effect, duration? }` | 屏幕特效：shake/flash/dim/rain/snow/petal/bokeh/zoom（详见 references/engine-asset-catalog.md） |
+| `anim` | `{ type:'anim', action:'play'\|'stop', id, position? }` | 序列帧动画；id 对应 manifest.animations（frames/frameRate/loop） |
+| `unlock` | `{ type:'unlock', ending }` | 解锁结局收集；ending 对应 StoryDef.endings[].id |
+| `video` | `{ type:'video', id }` | 全屏视频过场（DOM `<video>` 覆盖，点击跳过，**可被快进模式跳过**） |
+| `item` | `{ type:'item', id }` | 物件放大弹窗（证物/信件/照片，半透明覆盖层，**不会被快进跳过**，强制查看） |
+| `cinematic` | `{ type:'cinematic', on:boolean }` | 阶段5 电影宽银幕开关（黑边 + 加强背景缓推） |
+| `relation` | `{ type:'relation', characters:[ RelationDef ] }` | 角色养成档案声明（好感等），init 预扫描 |
+| `event` | `{ type:'event', list:[ EventDef ] }` | 养成事件监视表（条件命中自动跳转），init 预扫描 |
+| `clue` | `{ type:'clue', id, name, desc, icon? }` | 线索/证物声明与收集 |
+| `deduce` | `{ type:'deduce', list:[ DeductionDef ] }` | 推理规则（选线索组合触发跳转/写变量） |
+| `explore` | `{ type:'explore', bg, widthRatio?, hint?, hotspots:[ ExploreHotspot ] }` | 阶段3 探索模式（宽图平移 + 点击热区收集线索/弹出道具） |
+| `hub` | `{ type:'hub', title?, bg?, time:[…], apPerPhase?, onEnd, nodes:[ HubNode ] }` | 阶段4 场景自选枢纽（地图节点 + 时间阶段 + 行动点） |
+| `returnHub` | `{ type:'returnHub' }` | 阶段4 场景结束回到枢纽 |
+| `qte` | `{ type:'qte', id, prompt, duration, mode:'tap'\|'key'\|'mash', key?, target?, successLabel, failLabel, once? }` | 阶段6 QTE 快速反应事件 |
+| `codex` | `{ type:'codex', list:[ CodexDef ] }` | 阶段6 图鉴目录声明（角色/地点/术语/线索） |
+| `codexUnlock` | `{ type:'codexUnlock', id }` | 阶段6 解锁图鉴条目 |
 
 ### 条件表达式
 
@@ -151,7 +161,81 @@ sprites: {
 
 ---
 
-## 4. placeholder.ts — 占位图
+## 4. 阶段6 演出增强与系统（让剧本多一些表达）
+
+以下 stage 6 功能均已实现（眨眼除外，见下）。合理使用可显著丰富演出层次与玩法深度。
+
+### 4.1 视差（Parallax）— 背景「厚度感」
+
+把单张背景按**深度图切成远/中/近多层**，引擎按层位移因子偏移：近景随鼠标/空闲呼吸移动明显、远景几乎不动。
+
+```ts
+// manifest.ts —— 在 AssetManifest 增加 parallax 字段
+parallax: {
+  px_corridor: {
+    layers: [
+      '/images/bg/jianmo/parallax/px_corridor_far.png',   // 远景（整图）
+      '/images/bg/jianmo/parallax/px_corridor_mid.png',   // 中景带
+      '/images/bg/jianmo/parallax/px_corridor_near.png',  // 近景带
+    ],
+    factors: [0.12, 0.45, 1.0],   // 位移因子：远景小、近景大
+  },
+}
+// script.ts —— 普通切换场景即可，bg 命中 parallax 定义就自动启用多层
+{ type:'scene', bg:'px_corridor' }
+```
+
+- 行为：**空闲时画面极缓「呼吸」**（Ken Burns 级微动）；**鼠标移动时各层按 factor 错位**（近景位移大、远景几乎不动）；**切换场景整组视差层淡入淡出**。
+- 开关：`GameSettings.parallaxEnabled` 可整体关闭。
+- 资源制作：用深度图（DepthAnything）把单张背景切成 far/mid/near 三层，详见 `STAGE6_PARALLAX_BLINK_ASSETS.md`。
+
+### 4.2 QTE — 快速反应事件
+
+在关键时刻插入限时反应，失败/成功走不同分支。
+
+```ts
+{ type:'qte', id:'demo_qte', prompt:'快躲开！', duration:2.0, mode:'tap',
+  successLabel:'dodge_ok', failLabel:'dodge_fail', once:true }
+```
+
+- `mode`：`tap`（点击/触屏即过）、`key`（按指定键，`key:' '`）、`mash`（连点 `target:5` 次）。
+- `once:true` 用 `flag.qte.<id>` 守门（读档安全，不会重复触发）。
+- **总开关**：设置或 `GameSettings.qteEnabled=false` 时引擎直接判定成功（无障碍/跳过友好）。
+
+### 4.3 图鉴（Codex）— 世界观收集
+
+声明目录，游戏进程中逐步解锁，玩家在顶栏「图鉴」面板查阅（未解锁显示 ???）。
+
+```ts
+// 声明目录（init 预扫描登记）
+{ type:'codex', list:[
+  { id:'gucheng', category:'character', title:'顾承', desc:'……' },
+  { id:'dock',    category:'place',     title:'废旧码头', desc:'……' },
+  { id:'protocol',category:'term',      title:'缄默协议', desc:'……' },
+]}
+// 剧情推进中解锁
+{ type:'codexUnlock', id:'gucheng' }
+```
+
+- `category`：`character` / `place` / `term` / `clue`。
+- 存档：`unlockedCodex` 序列化，读档恢复。
+
+### 4.4 多周目（NG+）— 规划中
+
+路线锁 + 周目继承的纯引擎方案已写入 `GAMEPLAY_UPGRADE_PLAN.md §9.3`（SPEC 阶段，尚未编码）。需要时按该 SPEC 落地即可。
+
+### 4.5 立绘眨眼（Blink）— 已实现，默认挂起 ⏸️
+
+程序化眼睑方案已实现（Pillow 几何定位双眼 + 采样肤色生成闭眼覆盖层，与原立绘 100% 对齐、无 GPU）。**但因本作是真实系小眼，眨眼几乎不可见，已默认关闭**（`GameSettings.blinkEnabled=false`）。
+
+- 适用场景：**二次元大眼向立绘**效果显著。届时把 9 张 `<sprite>_blink.png` 覆盖层 + 引擎代码一键启用即可。
+- 设置面板保留「立绘眨眼」开关（关着），可勾选复验。
+
+> 更早的 stage 3–5 系统（`hub` 枢纽 / `explore` 探索 / `clue`+`deduce` 推理 / `relation`+`event` 养成 / `cinematic` 电影宽屏）的完整字段与示例见 `DEV_MANUAL.md` 与 `references/step6-game-authoring.md`。
+
+---
+
+## 5. placeholder.ts — 占位图
 
 如果 manifest 中声明的图片文件实际不存在，在 `MISSING_KEYS` 中标记：
 

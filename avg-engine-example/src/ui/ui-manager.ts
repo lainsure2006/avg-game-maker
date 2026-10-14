@@ -1198,6 +1198,13 @@ export class UIManager {
       this.engine.settings.qteEnabled = qteEnabled.checked;
       this.saveSettings();
     });
+
+    // 阶段6：立绘眨眼总开关
+    const blinkEnabled = document.getElementById('setting-blink-enabled') as HTMLInputElement;
+    blinkEnabled.addEventListener('change', () => {
+      this.engine.settings.blinkEnabled = blinkEnabled.checked;
+      this.saveSettings();
+    });
   }
 
   /** 同步设置到 UI */
@@ -1208,6 +1215,7 @@ export class UIManager {
     (document.getElementById('setting-se-volume') as HTMLInputElement).value = String(this.engine.settings.seVolume);
     (document.getElementById('setting-font-size') as HTMLSelectElement).value = this.engine.settings.fontSize;
     (document.getElementById('setting-qte-enabled') as HTMLInputElement).checked = this.engine.settings.qteEnabled;
+    (document.getElementById('setting-blink-enabled') as HTMLInputElement).checked = this.engine.settings.blinkEnabled !== false;
   }
 
   /** 应用字体大小 */

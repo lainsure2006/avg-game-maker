@@ -34,6 +34,12 @@ export class AssetLoader {
     for (const url of Object.values(manifest.audio)) {
       urls.push(url);
     }
+    // 收集所有视差层（阶段6·视差）
+    for (const def of Object.values(manifest.parallax ?? {})) {
+      for (const url of def.layers) {
+        urls.push(url);
+      }
+    }
 
     let loaded = 0;
     const total = urls.length;
@@ -91,6 +97,32 @@ export class AssetLoader {
   /** 获取已加载的图片 */
   getImage(url: string): HTMLImageElement | undefined {
     return this.images.get(url);
+  }
+
+  /**
+   * 阶段6·眨眼：按需加载单张图片（带缓存）。
+   * 用于按命名约定加载「闭眼覆盖层」等非清单资源；文件缺失时静默返回 undefined，不阻塞流程。
+   */
+  async ensureImage(url: string): Promise<HTMLImageElement | undefined> {
+    const cached = this.images.get(url);
+    if (cached) return cached;
+    try {
+      const img = await this.loadImageStrict(url);
+      this.images.set(url, img);
+      return img;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** 严格加载（失败 reject），供 ensureImage 判定资源是否存在 */
+  private loadImageStrict(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`图片不存在: ${url}`));
+      img.src = url;
+    });
   }
 
   /** 获取已加载的音频 buffer */
