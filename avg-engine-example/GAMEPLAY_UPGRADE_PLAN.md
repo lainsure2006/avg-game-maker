@@ -371,4 +371,4 @@ interface HubDef {
 ## 10. 提交约定
 - 每阶段一个 commit，message 前缀 `[阶段N]`。
 - 验证（build + 示例故事实测）通过后才合并进 master 并推送 CNB。
-- 示例故事（story7…）验证满意后可整体删除，不影响正式故事。
+- 示例故事（story7 人物养成 / story8 线索推理 / story9 探索 / story10 hub）已于 2026-10-14 上传前清理删除，不影响正式故事 story3《樱色未央》/ story4《雾港回声》/ story5《缄默回廊》。删除后 `npm run build` 26 模块通过。
