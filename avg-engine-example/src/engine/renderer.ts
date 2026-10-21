@@ -93,17 +93,9 @@ export class AnimationPlayer {
 
   /** 绘制所有活跃动画 */
   render(ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number): void {
+    // 只有显式 play() 后才绘制；避免 loop 动画在从未触发时也常驻屏幕。
     for (const anim of this.animations.values()) {
-      if (!anim.playing && !anim.def.loop) continue;
-      // 循环动画即使暂停也显示第一帧
-      if (!anim.playing && anim.def.loop) {
-        if (anim.images.length === 0) continue;
-        const img = anim.images[anim.currentFrame];
-        this.drawAnimFrame(ctx, img, anim, canvasW, canvasH);
-        continue;
-      }
       if (!anim.playing) continue;
-
       const img = anim.images[anim.currentFrame];
       if (!img) continue;
       this.drawAnimFrame(ctx, img, anim, canvasW, canvasH);
