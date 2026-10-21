@@ -112,10 +112,11 @@ export class AnimationPlayer {
     ctx.globalAlpha = anim.alpha;
     const posX = CHAR_POSITIONS[anim.position] * canvasW;
 
-    // 按立绘规则缩放：高度占画布 75%，但宽度不能超过 0.28*画布宽，
-    // 否则相邻 left/center/right（间距 0.3*画布宽）的角色立绘会水平重叠。
-    const maxHeight = canvasH * 0.75;
-    const maxW = canvasW * 0.28;
+    // 炉火动画：固定在底部中央（壁炉位置），尺寸收敛为局部火焰，不铺满屏；
+    // 其它动画仍按立绘规则缩放（高 75%、宽 ≤0.28 画布）。
+    const isFire = anim.id === 'anim_fire';
+    const maxHeight = isFire ? canvasH * 0.34 : canvasH * 0.75;
+    const maxW = isFire ? canvasW * 0.16 : canvasW * 0.28;
     let scale = Math.min(maxHeight / img.height, 1);
     let drawW = img.width * scale;
     if (drawW > maxW) {
@@ -124,7 +125,7 @@ export class AnimationPlayer {
     }
     const drawH = img.height * scale;
     const drawX = posX - drawW / 2;
-    const drawY = canvasH - drawH;
+    const drawY = canvasH - drawH;   // 底部对齐：壁炉在地面
 
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
     ctx.globalAlpha = 1;

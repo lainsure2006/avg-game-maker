@@ -312,6 +312,10 @@ export class UIManager {
       this.updateCluesBadge();
       if (!this.cluesPanel.classList.contains('hidden')) this.renderClues();
     };
+    // 探索热区拾取到线索 → 弹出线索详情面板（即玩家期待的「物品菜单」反馈，并给出明确的关闭入口）
+    this.engine.onClueInspect = (clue: ClueDef) => {
+      this.openClueDetail(clue);
+    };
 
     // 推理成功 → 瞬时提示（与养成事件共用 toast）
     this.engine.onDeductionFired = (id, toast) => {
@@ -1605,17 +1609,27 @@ export class UIManager {
 
   // ========== 阶段3：探索模式 HUD 控制 ==========
   private showExploreHud(info: { hint?: string; total: number }): void {
-    this.exploreHintText = info.hint ?? '拖动浏览场景，点击发光处寻找线索';
+    const base = info.hint ?? '拖动浏览场景，点击发光处寻找线索';
+    this.exploreHintText = `${base} 点中线索后点右上「结束探索」继续故事。`;
     this.exploreHintTextEl.textContent = this.exploreHintText;
     this.exploreHud.classList.remove('hidden');
     this.dialogBox.classList.add('hidden'); // 探索时隐藏对话框，避免误触推进
   }
 
   private updateExploreCount(found: number, total: number, label?: string): void {
-    // 不再常驻显示「线索 X/Y」（避免压住顶部菜单），仅以短暂提示反馈已发现的线索
+    // 点中热区：明确反馈「已记入线索」，并提示可继续探索 / 结束
     if (label) {
-      this.exploreHintTextEl.textContent = `发现：${label}`;
-      window.setTimeout(() => { this.exploreHintTextEl.textContent = this.exploreHintText; }, 1600);
+      this.exploreHintTextEl.textContent = `发现：${label}（已记入线索笔记本）`;
+    }
+    // 全部找齐：把提示切换为明确的结束指引，避免玩家误以为卡住
+    if (found >= total) {
+      this.exploreHintText = '线索已全部找到，点右上「结束探索 ✕」继续故事。';
+      this.exploreHintTextEl.textContent = this.exploreHintText;
+      this.btnExploreEnd.classList.add('explore-end-pulse');
+      return;
+    }
+    if (label) {
+      window.setTimeout(() => { this.exploreHintTextEl.textContent = this.exploreHintText; }, 1900);
     }
   }
 
@@ -1787,6 +1801,7 @@ export class UIManager {
     this.engine.onEndingReached = null;
     this.engine.onEventFired = null;
     this.engine.onClueAdded = null;
+    this.engine.onClueInspect = null;
     this.engine.onDeductionFired = null;
     this.engine.onCodexUnlocked = null;
     this.engine.onHubEnter = null;

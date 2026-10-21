@@ -95,8 +95,8 @@ export class ParticleSystem {
       this.parts.push({
         type, x: this.rand(0, w), y: initial ? this.rand(-h, 0) : -12,
         vx: this.rand(-9, 9), vy: this.rand(22, 46),
-        size: this.rand(2, 5), rot: 0, vrot: 0,
-        alpha: this.rand(0.5, 0.9), sway: this.rand(14, 32), swayPhase: this.rand(0, Math.PI * 2),
+        size: this.rand(1, 2.6), rot: 0, vrot: 0,
+        alpha: this.rand(0.45, 0.85), sway: this.rand(14, 32), swayPhase: this.rand(0, Math.PI * 2),
         color: '#ffffff', life: 0, maxLife: 0,
       });
     } else if (type === 'bokeh') {

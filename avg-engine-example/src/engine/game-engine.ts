@@ -204,6 +204,8 @@ export class GameEngine {
   onEventFired: ((id: string, toast?: string) => void) | null = null;
   /** 收集到新线索（clue 指令执行时）；UI 据此刷新「线索」按钮角标 */
   onClueAdded: ((clue: ClueDef) => void) | null = null;
+  /** 探索热区拾取到线索时触发：UI 弹出的「线索详情」面板（用户期待的「物品菜单」反馈） */
+  onClueInspect: ((clue: ClueDef) => void) | null = null;
   /** 推理成功（tryDeduce 命中）；UI 据此弹瞬时提示 */
   onDeductionFired: ((id: string, toast?: string) => void) | null = null;
   /** 阶段6·Codex：解锁图鉴条目（codexUnlock 执行时）；UI 据此刷新角标/弹提示 */
@@ -1688,7 +1690,10 @@ export class GameEngine {
         if (h.clue && !this.ownedClues.has(h.clue)) {
           this.ownedClues.add(h.clue);
           const cdef = this.clueDefs.get(h.clue);
-          if (cdef) this.onClueAdded?.(cdef);
+          if (cdef) {
+            this.onClueAdded?.(cdef);
+            this.onClueInspect?.(cdef);   // 弹出线索详情，给玩家明确反馈
+          }
         }
         // 弹出关键道具（物件放大图）
         const it = h.item ? this.manifest?.items?.[h.item] : undefined;
