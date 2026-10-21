@@ -743,6 +743,14 @@ export class GameEngine {
         // 未填写则恢复默认（清除上一场景残留的调色/天气）。
         this.renderer.setGrade(cmd.grade ?? 'none');
         this.renderer.setWeather(cmd.weather ?? 'none');
+        // 炉火动画（anim_fire）仅在有壁炉的室内场景出现，换场景即熄灭，
+        // 与 weather 同款思路：场景显式声明氛围，未声明则恢复默认（无火）。
+        const HEARTH_SCENES = new Set(['bg_lobby_warm', 'bg_boiler_fire']);
+        if (HEARTH_SCENES.has(cmd.bg)) {
+          this.renderer.animPlayer.play('anim_fire', 'center');
+        } else {
+          this.renderer.animPlayer.stop('anim_fire');
+        }
         // 换景即清台：切换背景时清空舞台上所有立绘（标准 AVG 习惯）。
         // 剧本若需在换景后保留某角色，必须在其后显式 show，不可依赖残留。
         for (const c of this.characters.values()) c.visible = false;
