@@ -887,6 +887,12 @@ export class GameEngine {
 
       case 'set': {
         this.variables.set(cmd.variable, cmd.value, cmd.op);
+        // 阶段6·NG+：carryFlags 名单内的变量在值为真时同步置旗标，
+        // 以支持「跨周目携带」+ if 条件中的 flag.<var> 判定（secret_* 体系）。
+        if (this.ngPlusConfig?.carryFlags?.includes(cmd.variable)) {
+          const v = this.variables.get(cmd.variable);
+          if (v === 1 || v === true || v === '1') this.variables.setFlag(cmd.variable);
+        }
         this.commandIndex++;
         // 养成事件监视：set 后自动判定，命中则跳转（checkEvents 内部已 executeNext）。
         // 声明为 relation/event 的指令本身在 init 时已预扫描，这里作为 no-op 直接跳过。
