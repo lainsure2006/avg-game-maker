@@ -9,6 +9,23 @@ import { ParticleSystem } from './particles';
 const FONT_SIZES = { small: 15, medium: 18, large: 22 };
 const CHAR_POSITIONS = { left: 0.2, center: 0.5, right: 0.8 };
 
+/**
+ * 序列帧的自定义锚点：相对画布的矩形区域（左上角 x/y + 宽高，均为 0–1 比例）。
+ * 用于把动画精确嵌进背景里的具体位置（如壁炉火膛），而不是按立绘三档定位。
+ */
+export interface AnimAnchor {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * anim_fire 序列帧内「火苗本体」的占比（实测 512×512 四帧平均）。
+ * 帧里还带一层径向辉光，若整帧硬塞会把火苗挤小；据此把火苗核心对齐到壁炉口。
+ */
+const FIRE_FRAME_CORE = { x0: 0.25, y0: 0.40, x1: 0.75, y1: 0.835 };
+
 // ========== 序列帧动画播放器 ==========
 
 export interface ActiveAnimation {
@@ -19,6 +36,8 @@ export interface ActiveAnimation {
   timer: number;
   playing: boolean;
   position: 'left' | 'center' | 'right';
+  /** 自定义锚点；有值时按区域定位并忽略 position */
+  anchor?: AnimAnchor | null;
   alpha: number;
 }
 
@@ -40,13 +59,18 @@ export class AnimationPlayer {
   }
 
   /** 播放指定动画 */
-  play(id: string, position: 'left' | 'center' | 'right' = 'center'): void {
+  play(
+    id: string,
+    position: 'left' | 'center' | 'right' = 'center',
+    anchor?: AnimAnchor | null,
+  ): void {
     const anim = this.animations.get(id);
     if (anim) {
       anim.playing = true;
       anim.currentFrame = 0;
       anim.timer = 0;
       anim.position = position;
+      anim.anchor = anchor ?? null;
       anim.alpha = 1;
     }
   }
@@ -110,10 +134,37 @@ export class AnimationPlayer {
     canvasH: number,
   ): void {
     ctx.globalAlpha = anim.alpha;
+
+    // 有锚点（如炉火嵌入壁炉口）：把「帧内火苗核心」等比映射到目标区域，
+    // 火苗本体填满壁炉开口，帧内辉光自然溢出到石壁，读感是炉膛里的火。
+    if (anim.anchor) {
+      const a = anim.anchor;
+      const core = anim.id === 'anim_fire'
+        ? FIRE_FRAME_CORE
+        : { x0: 0, y0: 0, x1: 1, y1: 1 };
+      const coreW = Math.max((core.x1 - core.x0) * img.width, 1);
+      const coreH = Math.max((core.y1 - core.y0) * img.height, 1);
+      const targetW = a.w * canvasW;
+      const targetH = a.h * canvasH;
+      // 宽高分别缩放：让帧内火苗核心精确填满目标区域（炉膛火焰本就偏瘦高）
+      const scaleX = targetW / coreW;
+      const scaleY = targetH / coreH;
+      const drawW = img.width * scaleX;
+      const drawH = img.height * scaleY;
+      // 以目标区域的水平中心 + 底边为对齐基准
+      const targetCx = (a.x + a.w / 2) * canvasW;
+      const targetBottom = (a.y + a.h) * canvasH;
+      const drawX = targetCx - ((core.x0 + core.x1) / 2) * drawW;
+      const drawY = targetBottom - core.y1 * drawH;
+
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
     const posX = CHAR_POSITIONS[anim.position] * canvasW;
 
-    // 炉火动画：固定在底部中央（壁炉位置），尺寸收敛为局部火焰，不铺满屏；
-    // 其它动画仍按立绘规则缩放（高 75%、宽 ≤0.28 画布）。
+    // 无锚点时按立绘规则缩放：炉火收敛为局部火焰（底部居中），其它动画高 75%。
     const isFire = anim.id === 'anim_fire';
     const maxHeight = isFire ? canvasH * 0.34 : canvasH * 0.75;
     const maxW = isFire ? canvasW * 0.16 : canvasW * 0.28;

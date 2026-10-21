@@ -745,11 +745,17 @@ export class GameEngine {
         // 未填写则恢复默认（清除上一场景残留的调色/天气）。
         this.renderer.setGrade(cmd.grade ?? 'none');
         this.renderer.setWeather(cmd.weather ?? 'none');
-        // 炉火动画（anim_fire）仅在有壁炉的室内场景出现，换场景即熄灭，
-        // 与 weather 同款思路：场景显式声明氛围，未声明则恢复默认（无火）。
-        const HEARTH_SCENES = new Set(['bg_lobby_warm', 'bg_boiler_fire']);
-        if (HEARTH_SCENES.has(cmd.bg)) {
-          this.renderer.animPlayer.play('anim_fire', 'center');
+        // 炉火动画（anim_fire）仅在有壁炉的室内场景出现，并按各背景实测的火膛
+        // 区域精确嵌入（相对画布的「火苗本体」bbox），换场景即熄灭——与 weather 同款。
+        const HEARTH_ANCHORS: Record<string, { x: number; y: number; w: number; h: number }> = {
+          // 大堂暖厅：右侧石砌壁炉，火膛口 x≈0.70–0.80 / y≈0.57–0.78，火苗略窄于口
+          bg_lobby_warm: { x: 0.715, y: 0.590, w: 0.070, h: 0.185 },
+          // 锅炉房：偏左中的砖砌炉口 x≈0.31–0.43 / y≈0.49–0.70
+          bg_boiler_fire: { x: 0.330, y: 0.545, w: 0.085, h: 0.145 },
+        };
+        const hearthAnchor = HEARTH_ANCHORS[cmd.bg];
+        if (hearthAnchor) {
+          this.renderer.animPlayer.play('anim_fire', 'center', hearthAnchor);
         } else {
           this.renderer.animPlayer.stop('anim_fire');
         }
