@@ -66,6 +66,10 @@ kickoff and adapt.
   `references/step1-story-design.md`: title, genre/art style, protagonist (player-insert vs named),
   core themes, **ending list (≥3)**, branch mechanic (e.g. affinity system), key characters,
   season/setting.
+  - **Worldview lock (MANDATORY)**: before any asset generation, Step 1 must produce `世界观设定.md`
+    locking **era / region-culture / ethnicity / costume / visual-negative terms** (see
+    `references/step1-story-design.md` §1.6). This is the hard pre-condition for Step 4/5 image
+    prompts — an un-locked worldview previously caused a full 59-image scrap-and-rerun incident.
 - **Fixed presets (do NOT ask the user — these are the engine's optimal defaults):**
   - Target platform = **web browser** (static build).
   - Design base **1280×720 (16:9)**; ship background art at **1920×1080**; sprites transparent PNG

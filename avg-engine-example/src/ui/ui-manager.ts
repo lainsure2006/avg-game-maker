@@ -116,6 +116,7 @@ export class UIManager {
   private btnTitleContinue: HTMLElement;
   private btnTitleSettings: HTMLElement;
   private btnTitleQuit: HTMLElement;
+  private btnTitleNgPlus: HTMLElement;
 
   // 故事选择面板
   private storySelectPanel: HTMLElement;
@@ -242,6 +243,7 @@ export class UIManager {
     this.btnTitleContinue = document.getElementById('btn-title-continue')!;
     this.btnTitleSettings = document.getElementById('btn-title-settings')!;
     this.btnTitleQuit = document.getElementById('btn-title-quit')!;
+    this.btnTitleNgPlus = document.getElementById('btn-title-ngplus')!;
 
     // 故事选择面板
     this.storySelectPanel = document.getElementById('story-select-panel')!;
@@ -369,11 +371,17 @@ export class UIManager {
         } else {
           this.btnTitleContinue.classList.add('hidden');
         }
+        this.refreshNgPlusButton();
       } else {
         this.titleMenu.classList.add('hidden');
         this.topBar.classList.remove('hidden');
         this.storySelectPanel.classList.add('hidden');
       }
+    };
+
+    // 阶段6·NG+：NG+ 可用性变化时刷新标题屏按钮
+    this.engine.onNgPlusAvailable = (available, pt) => {
+      this.refreshNgPlusButton();
     };
 
     // 首页操作回调
@@ -396,6 +404,10 @@ export class UIManager {
           break;
         case 'select_story':
           this.showStorySelect();
+          break;
+        case 'ng_plus':
+          this.titleMenu.classList.add('hidden');
+          this.topBar.classList.remove('hidden');
           break;
       }
     };
@@ -490,6 +502,11 @@ export class UIManager {
       if (this.stories.length > 1) {
         this.engine.titleAction('select_story');
       }
+    }, { signal: sig });
+
+    this.btnTitleNgPlus.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.engine.titleAction('ng_plus');
     }, { signal: sig });
 
     // 结局收集（标题屏）
@@ -1020,6 +1037,13 @@ export class UIManager {
     choices.forEach((choice, index) => {
       if (choice.condition && !this.engine.variables.evaluate(choice.condition)) {
         return;
+      }
+
+      // 阶段6·NG+：周目 / flag 门（不满足则隐藏该选项，保留原 index 映射）
+      if (choice.requires) {
+        const req = choice.requires;
+        if ((req.playthrough ?? 1) > this.engine.getPlaythrough()) return;
+        if ((req.flags ?? []).some(f => !this.engine.variables.hasFlag(f))) return;
       }
 
       const btn = document.createElement('button');
@@ -1619,7 +1643,9 @@ export class UIManager {
   private renderHubNodes(nodes: HubNode[]): void {
     this.hubGrid.innerHTML = '';
     for (const node of nodes) {
-      const locked = node.requires ? !this.engine.variables.evaluate(node.requires) : false;
+      const ngReq = node.ngRequires;
+      const ngLocked = !!ngReq && ((ngReq.playthrough ?? 1) > this.engine.getPlaythrough() || (ngReq.flags ?? []).some(f => !this.engine.variables.hasFlag(f)));
+      const locked = (node.requires ? !this.engine.variables.evaluate(node.requires) : false) || ngLocked;
       const card = document.createElement('div');
       card.className = 'hub-node' + (locked ? ' locked' : '');
       card.dataset.nodeId = node.id;
@@ -1628,7 +1654,7 @@ export class UIManager {
       card.innerHTML = `
         <div class="hub-node-icon">${locked ? '🔒' : '📍'}</div>
         <div class="hub-node-label">${this.escapeHtml(node.label)}</div>
-        ${locked ? `<div class="hub-node-lock">${this.escapeHtml(node.locked_msg ?? '尚未解锁')}</div>` : ''}
+        ${locked ? `<div class="hub-node-lock">${this.escapeHtml(ngLocked ? `需第 ${ngReq!.playthrough ?? 2} 周目` : (node.locked_msg ?? '尚未解锁'))}</div>` : ''}
       `;
       this.hubGrid.appendChild(card);
     }
@@ -1644,6 +1670,20 @@ export class UIManager {
   private hideHub(): void {
     this.hubOverlay.classList.add('hidden');
     this.topBar.classList.remove('hidden');
+  }
+
+  /** 阶段6·NG+：根据引擎状态刷新标题屏 NG+ 按钮的可见性与文案 */
+  private refreshNgPlusButton(): void {
+    const ng = this.engine.getNgPlusStatus();
+    if (ng.available) {
+      const labelEl = this.btnTitleNgPlus.querySelector('.btn-label');
+      // 文案须表示「点击后将进入的周目」＝当前周目 + 1（playthrough 是「正在玩的」周目数）
+      const next = ng.playthrough + 1;
+      if (labelEl) labelEl.textContent = next >= 2 ? `进入第 ${next} 周目` : '进入 NG+';
+      this.btnTitleNgPlus.classList.remove('hidden');
+    } else {
+      this.btnTitleNgPlus.classList.add('hidden');
+    }
   }
 
   /** 节点未解锁瞬时提示 */

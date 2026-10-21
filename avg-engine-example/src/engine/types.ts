@@ -74,6 +74,8 @@ export interface ChoiceItem {
   text: string;
   label: string;
   condition?: string;  // 可选条件
+  /** 阶段6·NG+：周目 / flag 门（不满足则在 UI 隐藏该选项，保留原 index 映射） */
+  requires?: { playthrough?: number; flags?: string[] };
 }
 
 /** 角色关系/养成档案（由 `relation` 指令声明，init 时预扫描登记） */
@@ -158,6 +160,8 @@ export interface HubNode {
   bg?: string;         // 进入该节点时的背景 id（可选，用于过场提示）
   requires?: string;   // 解锁条件（复用 VariableSystem.evaluate 语法，如 `flag.x` 或 `v_done == 1`）；不满足则锁定
   locked_msg?: string; // 未解锁时提示文案
+  /** 阶段6·NG+：周目 / flag 门（不满足则灰显锁定，独立于上面的变量门） */
+  ngRequires?: { playthrough?: number; flags?: string[] };
   jump: string;        // 进入该场景的 label
 }
 
@@ -186,6 +190,21 @@ export interface EndingDef {
   desc: string;        // 结局简介
   how: string;         // 如何达成（点击卡片后详情中展示，给玩家解锁方向）
   thumbnail: string;   // 缩略图路径（通常使用该结局代表背景图，如 '/images/bg/street.png'）
+}
+
+/** 阶段6·NG+：跨周目携带配置（由 StoryDef.ngPlus 声明） */
+export interface NgPlusConfig {
+  carryRelations?: string[];   // 跨周目保留的好感度变量对应的角色 id
+  carryFlags?: string[];       // 跨周目保留的 flag 名单
+  hiddenRoutesRequire?: number;// 隐藏路线所需最低周目数（默认 2）
+}
+
+/** 阶段6·NG+：跨周目携带子集（序列化进存档） */
+export interface NgCarry {
+  relations: Record<string, number>;  // 角色 id -> 好感度数值
+  flags: string[];                    // 保留的 flag 名单
+  codex: string[];                    // 已解锁图鉴条目 id
+  endings: string[];                  // 已解锁结局 id（跨周目累加）
 }
 
 /** 阶段4：枢纽存档状态（读档恢复用） */
@@ -255,6 +274,10 @@ export interface SaveData {
 
 export interface SerializedGameState {
   currentCommandIndex: number;
+  /** 阶段6·NG+：当前周目（首轮为 1） */
+  playthrough: number;
+  /** 阶段6·NG+：跨周目携带子集（读档恢复用） */
+  ngCarry: NgCarry;
   /** 读档时正在播放的 BGM id（null 表示当时静默）；用于读档后恢复游戏音频 */
   bgmId: string | null;
   variables: Record<string, number | string | boolean>;
@@ -307,4 +330,4 @@ export interface TitleScreenConfig {
   showQuitButton: boolean;       // 显示"退出"
 }
 
-export type TitleScreenAction = 'start' | 'continue' | 'settings' | 'quit' | 'select_story';
+export type TitleScreenAction = 'start' | 'continue' | 'settings' | 'quit' | 'select_story' | 'ng_plus';

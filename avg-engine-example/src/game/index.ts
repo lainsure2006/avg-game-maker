@@ -9,7 +9,7 @@
  * 引擎会自动发现所有 story.ts 并注册，无需手动编辑本文件。
  */
 
-import type { AssetManifest, ScriptCommand, TitleScreenConfig, EndingDef } from '../engine/types';
+import type { AssetManifest, ScriptCommand, TitleScreenConfig, EndingDef, NgPlusConfig } from '../engine/types';
 
 // ========== 故事定义类型 ==========
 export interface StoryDef {
@@ -22,6 +22,8 @@ export interface StoryDef {
   getScript: () => ScriptCommand[];
   /** 结局收集目录（可选）。声明后引擎会记录已解锁结局，UI 相册面板据此展示 */
   endings?: EndingDef[];
+  /** 阶段6·NG+：声明本作允许多周目，并指定跨周目携带的好感/flag；存在时通关后标题屏出现「进入 NG+」 */
+  ngPlus?: NgPlusConfig;
 }
 
 export type StoryConfig = StoryDef;

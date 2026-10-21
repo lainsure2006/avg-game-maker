@@ -49,6 +49,7 @@ async function loadStory(storyId: string): Promise<void> {
     // 配置首页
     engine.setTitleScreen(story.titleScreen);
     engine.setStoryId(story.id);
+    engine.setNgPlus(story.ngPlus ?? null);
 
     // 创建 UI 管理器
     uiManager = new UIManager(engine, stories);

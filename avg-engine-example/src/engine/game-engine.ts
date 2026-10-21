@@ -25,6 +25,8 @@ import type {
   HubDef,
   HubNode,
   HubInfo,
+  NgCarry,
+  NgPlusConfig,
 } from './types';
 import { Renderer } from './renderer';
 import { VariableSystem } from './variables';
@@ -174,6 +176,14 @@ export class GameEngine {
   /** 最近一次 unlock 的结局 id（end 指令触发结局提示时用） */
   private pendingEndingId: string | null = null;
 
+  // 阶段6·NG+：多周目状态
+  private playthrough: number = 1;
+  private ngCarry: NgCarry = { relations: {}, flags: [], codex: [], endings: [] };
+  private canNgPlus: boolean = false;
+  private ngPlusConfig: NgPlusConfig | null = null;
+  private initialManifest: AssetManifest | null = null;
+  private initialScript: Record<string, unknown>[] = [];
+
   // 回调
   onDialogUpdate: ((speaker: string, text: string, isNarration: boolean) => void) | null = null;
   onDialogComplete: (() => void) | null = null;
@@ -182,6 +192,8 @@ export class GameEngine {
   onCommandChange: ((index: number, total: number) => void) | null = null;
   onTitleAction: ((action: TitleScreenAction) => void) | null = null;
   onTitleScreenChange: ((visible: boolean) => void) | null = null;
+  onNgPlusAvailable: ((available: boolean, playthrough: number) => void) | null = null;
+  onNgPlusStarted: ((playthrough: number) => void) | null = null;
   /** UI 请求“推进/翻页”：自动播放模式下的前进统一走此回调，使长文本分页也能逐页展示 */
   onAdvanceRequest: (() => void) | null = null;
   /** 打开结局收集相册面板（由 UI 实现） */
@@ -233,6 +245,8 @@ export class GameEngine {
   /** 初始化：加载资源清单和脚本 */
   async init(manifest: AssetManifest, script: Record<string, unknown>[]): Promise<void> {
     this.manifest = manifest;
+    this.initialManifest = manifest;
+    this.initialScript = script;
     this.commands = parseScript(script);
 
     // 建立标签索引
@@ -355,6 +369,8 @@ export class GameEngine {
       }
     }
     this.onTitleScreenChange?.(true);
+    // 阶段6·NG+：进入标题屏时同步按钮可见性（如从结局提示返回标题）
+    this.onNgPlusAvailable?.(this.canNgPlus, this.playthrough);
   }
 
   /** 开始游戏主循环（首页后调用） */
@@ -376,6 +392,10 @@ export class GameEngine {
     this.commandIndex = state.currentCommandIndex;
     this.variables.import(state.variables, state.flags);
     this.backlog = state.backlog;
+
+    // 阶段6·NG+：恢复周目数与跨周目携带子集
+    this.playthrough = state.playthrough ?? 1;
+    this.ngCarry = state.ngCarry ?? { relations: {}, flags: [], codex: [], endings: [] };
 
     // 恢复已收集线索（def 已在 init 预扫描登记，此处仅重建「已拥有」集合）
     this.ownedClues = new Set(state.clues ?? []);
@@ -1014,6 +1034,11 @@ export class GameEngine {
         // 抵达结局：弹出结局提示（pendingEndingId 由 preceding unlock 指令设置；
         // 若某结局路径漏写 unlock，则传 null 显示通用“剧终”）。
         this.onEndingReached?.(this.pendingEndingId);
+        // 阶段6·NG+：若本作声明了 ngPlus，则标记可进入 NG+
+        if (this.ngPlusConfig) {
+          this.canNgPlus = true;
+          this.onNgPlusAvailable?.(true, this.playthrough);
+        }
         break;
       }
 
@@ -1180,6 +1205,95 @@ export class GameEngine {
     return this.saves.getUnlockedEndings(this.storyId);
   }
 
+  /** 阶段6·NG+：声明本作的 ngPlus 配置（由 main.ts 在加载故事后调用） */
+  setNgPlus(cfg: NgPlusConfig | null): void {
+    this.ngPlusConfig = cfg;
+    if (!cfg) this.canNgPlus = false;
+  }
+
+  /** 阶段6·NG+：获取当前周目数（供 UI 门控使用） */
+  getPlaythrough(): number {
+    return this.playthrough;
+  }
+
+  /** 阶段6·NG+：获取 NG+ 可用性状态（供 UI 渲染按钮） */
+  getNgPlusStatus(): { available: boolean; playthrough: number } {
+    return { available: this.canNgPlus, playthrough: this.playthrough };
+  }
+
+  /**
+   * 阶段6·NG+：进入下一周目。
+   * 1) 收集当前跨周目携带数据（好感/flag/图鉴/结局）；
+   * 2) playthrough += 1；
+   * 3) 以原始 manifest/script 重新初始化（干净重启一周目，变量与一次性门全部复位）；
+   * 4) 重新应用携带数据；
+   * 5) 退出标题屏并开始新周目。
+   */
+  async enterNgPlus(): Promise<void> {
+    if (!this.ngPlusConfig) return;
+
+    // 1. 收集携带数据（基于"当前"状态）
+    const carry: NgCarry = {
+      relations: {},
+      flags: [],
+      codex: Array.from(this.unlockedCodex),
+      endings: [...this.ngCarry.endings, ...this.saves.getUnlockedEndings(this.storyId)],
+    };
+    for (const relId of (this.ngPlusConfig.carryRelations ?? [])) {
+      const rel = this.relations.get(relId);
+      if (rel) {
+        const v = this.variables.get(rel.affinity);
+        carry.relations[relId] = typeof v === 'number' ? v : (v ? 1 : 0);
+      }
+    }
+    for (const f of (this.ngPlusConfig.carryFlags ?? [])) {
+      if (this.variables.hasFlag(f)) carry.flags.push(f);
+    }
+    this.ngCarry = carry;
+
+    // 2. 周目 +1
+    this.playthrough += 1;
+
+    // 3. 干净重启：复用第一次 init 已解析的脚本（commands/labels）与已加载的资源，
+    //    仅同步复位「每周目」运行时状态，避免二次 init 重加载资源（既无必要、又制造
+    //    await 空窗期、且二次 init 易抛错导致 startGameLoop 不执行 -> 直接落到结局）。
+    this.variables.reset();
+    this.commandIndex = 0;
+    this.characters.clear();
+    this.ownedClues.clear();        // 线索 def（clueDefs）保留，仅清空「已收集」集合
+    this.unlockedCodex = new Set<string>(); // 下一步用携带数据重建
+    this.pendingEndingId = null;
+    this.backlog = [];
+    this.waitingForChoice = false;
+    this.waitingForExplore = false;
+    this.waitingForHub = false;
+    this.waitingForQte = false;
+    this.hubDef = null;
+    this.hubEnded = false;
+    this.cinematicOn = false;
+    this.renderer.setCinematic(false);
+    this.onCinematic?.(false);
+    this.currentBgId = null;
+    this.renderer.setBackground(null, 'none');
+    this.renderer.setParallaxStack(null, 'none');
+    this.audio?.stopBgm();
+
+    // 4. 重新应用携带数据
+    for (const [relId, val] of Object.entries(carry.relations)) {
+      const rel = this.relations.get(relId);
+      if (rel) this.variables.set(rel.affinity, val);
+    }
+    for (const f of carry.flags) this.variables.setFlag(f);
+    for (const c of carry.codex) this.unlockedCodex.add(c);
+
+    // 5. 开始新周目
+    this.canNgPlus = false; // 本周目尚未再次通关
+    this.onTitleScreen = false;
+    this.onTitleScreenChange?.(false);
+    this.startGameLoop();
+    this.onNgPlusStarted?.(this.playthrough);
+  }
+
   /** 当前是否停留在选项（等待玩家选择），供 UI 判断关闭相册后是否恢复选项面板 */
   isChoicePending(): boolean {
     return this.waitingForChoice;
@@ -1206,6 +1320,12 @@ export class GameEngine {
         break;
       case 'quit':
         // 不做实际退出，回到首页
+        break;
+      case 'ng_plus':
+        // 阶段6·NG+：隐藏首页，以新周目重启当前故事
+        this.onTitleScreen = false;
+        this.onTitleScreenChange?.(false);
+        this.enterNgPlus();
         break;
     }
 
@@ -1321,6 +1441,8 @@ export class GameEngine {
   getSaveState(label: string): SerializedGameState {
     return {
       currentCommandIndex: this.commandIndex,
+      playthrough: this.playthrough,
+      ngCarry: this.ngCarry,
       bgmId: this.audio?.getCurrentBgmId() ?? null,
       variables: this.variables.export(),
       flags: this.variables.exportFlags(),

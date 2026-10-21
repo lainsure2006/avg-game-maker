@@ -15,12 +15,14 @@ export default defineConfig({
     // 若你通过 symlink 访问本仓库（例如把 skill 目录软链到实际 git 仓库），
     // Vite 默认 fs.allow 按「启动目录」判定，但模块真实路径会被解析到 symlink 目标盘，
     // 二者不匹配会导致模块加载被拒（页面黑屏 / Pre-transform error）。
-    // 显式把 symlink 目标盘符加入白名单即可消除；无 symlink 时可删除下面两行。
+    // 显式把 symlink 目标盘符加入白名单即可消除；无 symlink 时可保留根目录项。
+    // 本机软链：C:/Users/wll/.workbuddy/skills/avg-game-maker -> D:/avg-game-maker-skill
     fs: {
       allow: [
-        resolve(__dirname),
-        '<SYMLINK_TARGET_DIR>',   // 例：E:/your-git-repo（symlink 真实目标盘符路径）
-        '<SKILL_PARENT_DIR>',     // 例：C:/Users/<你>/.workbuddy/skills（symlink 来源根）
+        resolve(__dirname),                       // 启动目录（symlink 路径）
+        'D:/avg-game-maker-skill/avg-engine-example', // symlink 真实目标（引擎示例）
+        'D:/avg-game-maker-skill',               // symlink 真实目标（仓库根）
+        'C:/Users/wll/.workbuddy/skills',        // symlink 来源根
       ],
     },
   },

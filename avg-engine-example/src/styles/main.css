@@ -498,6 +498,17 @@ body {
   overflow: hidden;
 }
 
+/* 阶段6·NG+：多周目入口强调色（金） */
+.title-menu-btn.ng {
+  border-color: rgba(220, 180, 90, 0.5);
+  color: #f0d8a0;
+  background: rgba(220, 180, 90, 0.08);
+}
+.title-menu-btn.ng:hover {
+  background: rgba(220, 180, 90, 0.18);
+  border-color: rgba(220, 180, 90, 0.85);
+}
+
 .title-menu-btn::before {
   content: '';
   position: absolute;
