@@ -749,7 +749,7 @@ export class GameEngine {
         // 区域精确嵌入（相对画布的「火苗本体」bbox），换场景即熄灭——与 weather 同款。
         const HEARTH_ANCHORS: Record<string, { x: number; y: number; w: number; h: number }> = {
           // 大堂暖厅：右侧石砌壁炉，火膛口 x≈0.70–0.80 / y≈0.57–0.78，火苗略窄于口
-          bg_lobby_warm: { x: 0.700, y: 0.590, w: 0.070, h: 0.185 },
+          bg_lobby_warm: { x: 0.685, y: 0.590, w: 0.070, h: 0.185 },
           // 锅炉房：偏左中的砖砌炉口 x≈0.31–0.43 / y≈0.49–0.70
           bg_boiler_fire: { x: 0.330, y: 0.545, w: 0.085, h: 0.145 },
         };
