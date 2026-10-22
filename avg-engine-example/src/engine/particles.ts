@@ -33,7 +33,7 @@ export class ParticleSystem {
   private w = 1280;
   private h = 720;
   private acc = 0;
-  private readonly maxParts = 1200;
+  private readonly maxParts = 560;
 
   /** 画布尺寸变化（resize 时调用） */
   setSize(w: number, h: number): void {
@@ -52,7 +52,7 @@ export class ParticleSystem {
     this.parts = [];
     this.acc = 0;
     if (type !== 'none') {
-      const pre: Record<WeatherType, number> = { none: 0, petal: 34, rain: 90, snow: 90, bokeh: 7 };
+      const pre: Record<WeatherType, number> = { none: 0, petal: 34, rain: 90, snow: 34, bokeh: 7 };
       const n = pre[type] || 0;
       for (let i = 0; i < n; i++) this.spawn(type, true);
     }
@@ -92,26 +92,13 @@ export class ParticleSystem {
         color: '#bcd4ff', life: 0, maxLife: 0,
       });
     } else if (type === 'snow') {
-      // 暴雪增强：约 6% 概率生成近景大雪花（更快、带速度拉伸），其余为中远景细雪。
-      // 比例压低是为了「少而快」的掠过感，避免满屏白盘挡住画面。
-      const near = Math.random() < 0.06;
-      if (near) {
-        this.parts.push({
-          type, x: this.rand(-60, w + 60), y: initial ? this.rand(-h, 0) : -30,
-          vx: this.rand(40, 78), vy: this.rand(95, 165),
-          size: this.rand(4.5, 9), rot: 0, vrot: 0,
-          alpha: this.rand(0.18, 0.42), sway: 0, swayPhase: 0,
-          color: '#ffffff', life: 0, maxLife: 0,
-        });
-      } else {
-        this.parts.push({
-          type, x: this.rand(0, w), y: initial ? this.rand(-h, 0) : -12,
-          vx: this.rand(12, 34), vy: this.rand(22, 52),
-          size: this.rand(1, 2.6), rot: 0, vrot: 0,
-          alpha: this.rand(0.45, 0.85), sway: this.rand(14, 32), swayPhase: this.rand(0, Math.PI * 2),
-          color: '#ffffff', life: 0, maxLife: 0,
-        });
-      }
+      this.parts.push({
+        type, x: this.rand(0, w), y: initial ? this.rand(-h, 0) : -12,
+        vx: this.rand(-9, 9), vy: this.rand(22, 46),
+        size: this.rand(1, 2.6), rot: 0, vrot: 0,
+        alpha: this.rand(0.45, 0.85), sway: this.rand(14, 32), swayPhase: this.rand(0, Math.PI * 2),
+        color: '#ffffff', life: 0, maxLife: 0,
+      });
     } else if (type === 'bokeh') {
       const ml = this.rand(4.5, 9.5);
       this.parts.push({
@@ -131,7 +118,7 @@ export class ParticleSystem {
 
     // 环境天气持续生成
     if (this.weather !== 'none') {
-      const rates: Record<WeatherType, number> = { none: 0, petal: 24, rain: 95, snow: 70, bokeh: 4 };
+      const rates: Record<WeatherType, number> = { none: 0, petal: 24, rain: 95, snow: 28, bokeh: 4 };
       this.acc += (rates[this.weather] || 0) * this.intensity * dt;
       while (this.acc >= 1) {
         this.acc -= 1;
@@ -165,27 +152,8 @@ export class ParticleSystem {
     }
   }
 
-  /** 暴雪氛围层：冷蓝笼罩 + 屏幕边缘暗角，营造风雪压境感（仅雪天气） */
-  private renderSnowAtmosphere(ctx: CanvasRenderingContext2D): void {
-    ctx.save();
-    // 冷蓝笼罩：让整屏偏冷蓝，呼应暴雪夜基调
-    ctx.fillStyle = 'rgba(130,160,205,0.10)';
-    ctx.fillRect(0, 0, this.w, this.h);
-    // 边缘暗角：夜色/风雪包围的压迫感
-    const g = ctx.createRadialGradient(
-      this.w / 2, this.h / 2, this.h * 0.38,
-      this.w / 2, this.h / 2, this.h * 0.92,
-    );
-    g.addColorStop(0, 'rgba(8,12,24,0)');
-    g.addColorStop(1, 'rgba(6,10,20,0.48)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, this.w, this.h);
-    ctx.restore();
-  }
-
   /** 绘制（在 render() 最上层调用，ctx 已处于游戏坐标系） */
   render(ctx: CanvasRenderingContext2D): void {
-    if (this.weather === 'snow') this.renderSnowAtmosphere(ctx);
     for (const p of this.parts) {
       ctx.save();
       ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha));
@@ -200,20 +168,9 @@ export class ParticleSystem {
         ctx.stroke();
       } else if (p.type === 'snow') {
         ctx.fillStyle = p.color;
-        if (p.size > 4) {
-          // 近景大雪花：沿风向（向右）横向拉长，模拟高速掠过的速度感
-          ctx.save();
-          ctx.translate(p.x, p.y);
-          ctx.scale(1.8, 0.82);
-          ctx.beginPath();
-          ctx.arc(0, 0, p.size, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        } else {
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fill();
-        }
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
       } else if (p.type === 'bokeh') {
         const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
         g.addColorStop(0, p.color);
