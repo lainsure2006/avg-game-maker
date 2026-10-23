@@ -1663,6 +1663,11 @@ export class GameEngine {
     return this.waitingForExplore;
   }
 
+  /** 当前是否处于电影宽银幕（黑边）状态（供 UI 在探索进出时还原黑边） */
+  isCinematicOn(): boolean {
+    return this.cinematicOn;
+  }
+
   /** 退出探索模式并继续脚本（由 UI「结束探索」按钮调用） */
   exitExplore(): void {
     if (!this.waitingForExplore) return;

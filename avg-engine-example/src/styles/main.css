@@ -67,7 +67,7 @@ body {
   right: 8px;
   display: flex;
   gap: 6px;
-  z-index: 100;
+  z-index: 300;          /* 高于线索详情窗/电影黑边(200)与枢纽(250)，确保菜单在任意遮罩之上始终可点 */
   opacity: 0;
   transition: opacity 0.3s;
 }

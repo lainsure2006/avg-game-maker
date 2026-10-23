@@ -1617,6 +1617,8 @@ export class UIManager {
     // 探索为横向全景（宽屏）交互，鼠标多在画布拖拽，hover 揭示菜单不可靠；
     // 显式置顶菜单可见，确保「线索/图鉴/设置」随时可点。
     this.topBar.classList.add('visible');
+    // 探索模式不显示电影宽银幕上下黑边（避免黑边压住顶部菜单、且探索本非电影镜头）。
+    this.cinematicBars.classList.add('hidden');
   }
 
   private updateExploreCount(found: number, total: number, label?: string): void {
@@ -1640,6 +1642,8 @@ export class UIManager {
     this.exploreHud.classList.add('hidden');
     // 退出探索：恢复菜单为 hover 揭示（避免覆盖标题/HUB/结局等隐藏态由各自逻辑管理）
     this.topBar.classList.remove('visible');
+    // 还原电影宽银幕黑边到引擎真实状态（探索期间被强制隐藏，脚本后续 cinematic 指令自会再同步）
+    this.cinematicBars.classList.toggle('hidden', !this.engine.isCinematicOn());
   }
 
   private showExploreNudge(): void {
