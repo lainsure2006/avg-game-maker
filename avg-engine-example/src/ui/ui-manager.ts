@@ -1614,6 +1614,9 @@ export class UIManager {
     this.exploreHintTextEl.textContent = this.exploreHintText;
     this.exploreHud.classList.remove('hidden');
     this.dialogBox.classList.add('hidden'); // 探索时隐藏对话框，避免误触推进
+    // 探索为横向全景（宽屏）交互，鼠标多在画布拖拽，hover 揭示菜单不可靠；
+    // 显式置顶菜单可见，确保「线索/图鉴/设置」随时可点。
+    this.topBar.classList.add('visible');
   }
 
   private updateExploreCount(found: number, total: number, label?: string): void {
@@ -1635,6 +1638,8 @@ export class UIManager {
 
   private hideExploreHud(): void {
     this.exploreHud.classList.add('hidden');
+    // 退出探索：恢复菜单为 hover 揭示（避免覆盖标题/HUB/结局等隐藏态由各自逻辑管理）
+    this.topBar.classList.remove('visible');
   }
 
   private showExploreNudge(): void {

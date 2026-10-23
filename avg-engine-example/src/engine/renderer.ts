@@ -1122,6 +1122,9 @@ export class Renderer {
    */
   showItem(url: string, caption: string | undefined, onClose: () => void): void {
     this.hideItem(); // 清理任何残留
+    // 物件放大窗为整屏遮罩（视觉上像「宽屏」），hover 揭示菜单不可靠；
+    // 弹出时强制顶部菜单可见，确保「线索/图鉴/设置」仍能点。
+    document.getElementById('top-bar')?.classList.add('visible');
     const container = this.canvas.parentElement;
     if (!container) {
       console.warn('物件容器缺失，跳过弹出');
@@ -1183,6 +1186,8 @@ export class Renderer {
     if (!this.itemEl) return;
     const el = this.itemEl;
     this.itemEl = null;
+    // 关闭物件窗：恢复菜单为 hover 揭示
+    document.getElementById('top-bar')?.classList.remove('visible');
     try {
       el.remove();
     } catch { /* ignore */ }
