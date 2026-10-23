@@ -117,9 +117,25 @@ export class AnimationPlayer {
 
   /** 绘制所有活跃动画 */
   render(ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number): void {
+    // 全屏层：铺满整画布，绘制在背景之上、角色之下（如全屏风雪），不遮挡人物。
+    this.renderLayer(ctx, canvasW, canvasH, 'fullscreen');
+  }
+
+  /** 局部层：绘制在角色上层（维持原行为，如壁炉火）。 */
+  renderAbove(ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number): void {
+    this.renderLayer(ctx, canvasW, canvasH, 'portrait');
+  }
+
+  private renderLayer(
+    ctx: CanvasRenderingContext2D,
+    canvasW: number,
+    canvasH: number,
+    mode: 'portrait' | 'fullscreen',
+  ): void {
     // 只有显式 play() 后才绘制；避免 loop 动画在从未触发时也常驻屏幕。
     for (const anim of this.animations.values()) {
       if (!anim.playing) continue;
+      if ((anim.def.mode || 'portrait') !== mode) continue;
       const img = anim.images[anim.currentFrame];
       if (!img) continue;
       this.drawAnimFrame(ctx, img, anim, canvasW, canvasH);
@@ -134,6 +150,18 @@ export class AnimationPlayer {
     canvasH: number,
   ): void {
     ctx.globalAlpha = anim.alpha;
+
+    // 全屏模式：把序列帧等比 cover 拉伸铺满整画布（忽略锚点/站位），绘制在背景之上、角色之下。
+    if (anim.def.mode === 'fullscreen') {
+      const scale = Math.max(canvasW / img.width, canvasH / img.height);
+      const drawW = img.width * scale;
+      const drawH = img.height * scale;
+      const drawX = (canvasW - drawW) / 2;
+      const drawY = (canvasH - drawH) / 2;
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      ctx.globalAlpha = 1;
+      return;
+    }
 
     // 有锚点（如炉火嵌入壁炉口）：把「帧内火苗核心」等比映射到目标区域，
     // 火苗本体填满壁炉开口，帧内辉光自然溢出到石壁，读感是炉膛里的火。
@@ -452,11 +480,14 @@ export class Renderer {
     // 绘制背景（+转场）
     this.renderBackground(ctx);
 
+    // 全屏序列帧动画（铺满画布，位于背景之上、角色之下，如全屏风雪）
+    this.animPlayer.renderBelow(ctx, this.width, this.height);
+
     // 绘制角色（按位置排序）
     this.renderCharacters(ctx, characters);
 
-    // 绘制序列帧动画（覆盖在角色上层）
-    this.animPlayer.render(ctx, this.width, this.height);
+    // 局部序列帧动画（覆盖在角色上层，维持原行为，如壁炉火）
+    this.animPlayer.renderAbove(ctx, this.width, this.height);
 
     // 场景情绪调色（覆盖在场景与角色之上，营造氛围）
     this.renderGrade(ctx);

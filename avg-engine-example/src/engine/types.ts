@@ -36,6 +36,8 @@ export interface AnimationDef {
   loop: boolean;         // 是否循环播放
   width?: number;        // 绘制宽度（可选，默认按立绘规则缩放）
   height?: number;       // 绘制高度（可选）
+  /** 绘制模式：'portrait'（默认，局部，覆盖在角色上层，如壁炉火）| 'fullscreen'（铺满整画布，绘制在背景之上、角色之下，如全屏风雪） */
+  mode?: 'portrait' | 'fullscreen';
 }
 
 // ========== 脚本指令 ==========

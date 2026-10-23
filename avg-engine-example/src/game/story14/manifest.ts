@@ -117,7 +117,8 @@ export const manifest: AssetManifest = {
 
   animations: {
     anim_fire: { frames: [BG('anim_fire_0'), BG('anim_fire_1'), BG('anim_fire_2'), BG('anim_fire_3')], frameRate: 8, loop: true },
-    anim_snow: { frames: [BG('anim_snow_0'), BG('anim_snow_1'), BG('anim_snow_2'), BG('anim_snow_3')], frameRate: 6, loop: true },
+    // anim_snow：全屏层（铺满画布、位于角色之下），用于暴雪/雪崩等全屏风雪；真实帧到位后由脚本 `anim play anim_snow` 触发即自动全屏。
+    anim_snow: { frames: [BG('anim_snow_0'), BG('anim_snow_1'), BG('anim_snow_2'), BG('anim_snow_3')], frameRate: 6, loop: true, mode: 'fullscreen' },
   },
 
   // —— 音频 ——
