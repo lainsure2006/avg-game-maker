@@ -485,28 +485,34 @@ export class GameEngine {
     const dt = Math.min((time - this.lastTime) / 1000, 0.1); // 防止大帧跳跃
     this.lastTime = time;
 
-    if (this.onTitleScreen) {
-      // 首页渲染
-      this.renderTitleScreen();
-    } else {
-      if (this.waitingForExplore && this.exploreBgImage) {
-        this.renderer.renderExplore(
-          this.exploreBgImage, this.exploreOffset, this.exploreWidthRatio,
-          this.exploreDef!.hotspots, this.exploreFound,
-        );
-      } else if (this.waitingForHub) {
-        // 阶段4：枢纽激活时，画布渲染枢纽背景（节点由 DOM 覆盖层绘制）
-        if (this.hubBgImage) {
-          this.renderer.renderHubBg(this.hubBgImage);
-        } else {
-          this.renderer.clearToColor('#0b0e14');
-        }
+    try {
+      if (this.onTitleScreen) {
+        // 首页渲染
+        this.renderTitleScreen();
       } else {
-        this.renderer.update(dt);
-        this.update(dt);
-        this.renderer.render(this.characters, this.settings.fontSize);
-        this.drawAllCharacters();
+        if (this.waitingForExplore && this.exploreBgImage) {
+          this.renderer.renderExplore(
+            this.exploreBgImage, this.exploreOffset, this.exploreWidthRatio,
+            this.exploreDef!.hotspots, this.exploreFound,
+          );
+        } else if (this.waitingForHub) {
+          // 阶段4：枢纽激活时，画布渲染枢纽背景（节点由 DOM 覆盖层绘制）
+          if (this.hubBgImage) {
+            this.renderer.renderHubBg(this.hubBgImage);
+          } else {
+            this.renderer.clearToColor('#0b0e14');
+          }
+        } else {
+          this.renderer.update(dt);
+          this.update(dt);
+          this.renderer.render(this.characters, this.settings.fontSize);
+          this.drawAllCharacters();
+        }
       }
+    } catch (err) {
+      // 防御：单帧渲染/逻辑异常不再静默断链（曾由 broken 图触发 NaN 致整屏冻结），
+      // 改为暴露错误并继续下一帧，保证游戏不卡死。
+      console.error('[引擎] 渲染循环异常（已跳过本帧，循环继续）:', err);
     }
 
     this.rafId = requestAnimationFrame(this.loop);
@@ -710,7 +716,12 @@ export class GameEngine {
       return;
     }
 
-    this.executeCommand(cmd);
+    // 命令执行异常不应静默断链：捕获并暴露，同时跳过该指令继续，避免整段卡死。
+    this.executeCommand(cmd).catch((err) => {
+      console.error('[引擎] 命令执行异常（已跳过该指令继续）:', err);
+      this.commandIndex++;
+      this.executeNext();
+    });
   }
 
   /** 阶段6·视差：由 manifest.parallax 定义构建多层背景栈（层未就绪返回 null 降级单图层） */

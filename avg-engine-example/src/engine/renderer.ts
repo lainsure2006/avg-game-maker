@@ -331,7 +331,9 @@ export class Renderer {
     this.parallax = null;
     this.prevParallax = null;
     this.parallaxTransitioning = false;
-    if (!image) {
+    // 防御：图片未就绪 / 解码失败（width 或 height 为 0）时当作无背景处理，
+    // 避免把 broken 图交给 drawImageCover 触发 NaN 崩溃（曾致整屏冻结）。
+    if (!image || image.width < 1 || image.height < 1) {
       this.bgImage = null;
       return Promise.resolve();
     }
@@ -865,6 +867,10 @@ export class Renderer {
 
   /** 图片 cover 绘制 */
   private drawImageCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, alpha: number = 1): void {
+    // 防御：图片未就绪 / 解码失败（width 或 height 为 0）时跳过绘制，
+    // 避免 NaN 尺寸调用 drawImage 抛异常——曾导致渲染主循环 RAF 链断裂、
+    // 整屏冻结（CG 不显示 + 文字不继续）。
+    if (!img || img.width < 1 || img.height < 1) return;
     ctx.globalAlpha = alpha;
     const imgRatio = img.width / img.height;
     const canvasRatio = this.width / this.height;
