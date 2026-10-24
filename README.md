@@ -1,3 +1,5 @@
+> 🌐 English version: [README_EN.md](README_EN.md)
+
 # avg-game-maker
 
 一个 WorkBuddy **用户级 Skill**：把 WorkBuddy 变成「AVG（文字冒险/视觉小说）游戏制作搭档」，通过一套**严格的 8 步流水线**和人类协作产出一款可玩的 AVG 游戏。
