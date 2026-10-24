@@ -1500,14 +1500,14 @@ body {
   width: 1280px;
   height: 720px;
   pointer-events: none;   /* 容器不拦截，拖拽穿透到画布 */
-  z-index: 150;
+  z-index: 320;   /* 高于 #top-bar(300)：确保探索提示条/退出按钮/左右箭头不被常显顶栏遮挡 */
 }
 #explore-hud button { pointer-events: auto; }
 #explore-hud.hidden { display: none; }   /* 阶段3 修复：默认隐藏，仅进入探索时显示 */
 
 .explore-hint {
   position: absolute;
-  top: 14px;
+  top: 50px;   /* 下移避开常显顶栏(top:8px,高约30px)，避免与「线索/图鉴/设置」按钮垂直重叠 */
   left: 50%;
   transform: translateX(-50%);
   display: flex;

@@ -115,9 +115,8 @@ export class AnimationPlayer {
     }
   }
 
-  /** 绘制所有活跃动画 */
-  render(ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number): void {
-    // 全屏层：铺满整画布，绘制在背景之上、角色之下（如全屏风雪），不遮挡人物。
+  /** 全屏层：铺满整画布，绘制在背景之上、角色之下（如全屏风雪），不遮挡人物。 */
+  renderBelow(ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number): void {
     this.renderLayer(ctx, canvasW, canvasH, 'fullscreen');
   }
 
